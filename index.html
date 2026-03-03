@@ -1,0 +1,1512 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Poker Equity Trainer</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='18' fill='%2316a34a'/><text x='50' y='68' text-anchor='middle' font-size='50' font-weight='bold' fill='white'>%E2%99%A0</text></svg>">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;}
+:root,[data-theme="light"]{
+--bg:#f5f5f7;--bg2:#eaeaef;--bg3:#e0e0e8;--bg4:#d4d4dc;
+--surface:rgba(255,255,255,.85);--surfaceSolid:#ffffff;
+--border:rgba(0,0,0,.06);--border2:rgba(0,0,0,.1);
+--text:#1a1a2e;--text2:#4a4a64;--text3:#7a7a94;--text4:#a0a0b4;
+--red:#dc2626;--red2:#ef4444;--redBg:rgba(220,38,38,.08);
+--green:#16a34a;--green2:#22c55e;--greenBg:rgba(22,163,74,.08);
+--gold:#d97706;--goldBg:rgba(217,119,6,.08);
+--blue:#2563eb;--blueBg:rgba(37,99,235,.07);
+--accent:#16a34a;--accent2:#15803d;--accentBg:rgba(22,163,74,.05);
+--shadow:0 2px 16px rgba(0,0,0,.06);--shadow2:0 8px 32px rgba(0,0,0,.08);
+--navBg:rgba(26,26,50,.95);
+}
+[data-theme="dark"]{
+--bg:#0a0a0f;--bg2:#12121a;--bg3:#1a1a26;--bg4:#22222e;
+--surface:rgba(26,26,42,.85);--surfaceSolid:#1a1a2a;
+--border:rgba(255,255,255,.06);--border2:rgba(255,255,255,.1);
+--text:#e8e8f0;--text2:#a0a0b8;--text3:#6a6a82;--text4:#44445a;
+--red:#dc2626;--red2:#ef4444;--redBg:rgba(220,38,38,.12);
+--green:#22c55e;--green2:#4ade80;--greenBg:rgba(34,197,94,.12);
+--gold:#f59e0b;--goldBg:rgba(245,158,11,.12);
+--blue:#3b82f6;--blueBg:rgba(59,130,246,.1);
+--accent:#22c55e;--accent2:#16a34a;--accentBg:rgba(34,197,94,.08);
+--shadow:0 2px 16px rgba(0,0,0,.4);--shadow2:0 8px 32px rgba(0,0,0,.5);
+--navBg:rgba(10,10,18,.95);
+}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased;transition:background .3s,color .3s;}
+
+/* Nav */
+.nav{background:var(--navBg);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);height:52px;display:flex;align-items:center;padding:0 24px;position:sticky;top:0;z-index:50;}
+.nav-brand{display:flex;align-items:center;gap:10px;margin-right:32px;}
+.nav-brand svg{width:22px;height:22px;}
+.nav-brand span{font-weight:800;font-size:14px;letter-spacing:-.5px;color:#e8e8f0;}
+.nav-tabs{display:flex;gap:2px;height:100%;align-items:end;}
+.ntab{padding:10px 18px;font-size:12px;font-weight:600;color:#6a6a82;cursor:pointer;border:none;background:none;font-family:inherit;transition:all .15s;border-bottom:2px solid transparent;letter-spacing:.3px;text-transform:uppercase;}
+.ntab:hover{color:#a0a0b8;}
+.ntab.active{color:var(--accent);border-bottom-color:var(--accent);}
+.nav-right{margin-left:auto;display:flex;align-items:center;gap:8px;}
+.thbtn{width:34px;height:34px;border-radius:50%;border:1px solid var(--border2);background:var(--bg2);color:var(--text);font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;}.thbtn:hover{background:var(--bg3);transform:scale(1.1);}
+
+/* Main */
+.main{max-width:900px;margin:0 auto;padding:24px;}
+.tc{display:none;animation:fu .25s ease;}.tc.active{display:block;}
+@keyframes fu{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+/* Stat bar */
+.stat-bar{display:flex;gap:12px;margin-bottom:18px;flex-wrap:wrap;}
+.stat-box{flex:1;min-width:90px;padding:12px 14px;background:var(--surface);border-radius:12px;border:1px solid var(--border);box-shadow:var(--shadow);text-align:center;}
+.sv{font-family:'JetBrains Mono',monospace;font-size:24px;font-weight:800;color:var(--accent);}
+.sv.gold{color:var(--gold);}.sv.red{color:var(--red);}
+.sl{font-size:9px;color:var(--text3);margin-top:2px;text-transform:uppercase;letter-spacing:.5px;font-weight:600;}
+
+/* Card container */
+.card{background:var(--surface);backdrop-filter:blur(12px);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:16px;transition:border-color .15s;}
+.card:hover{border-color:var(--border2);}
+.card-h{padding:16px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);}
+.card-title{font-size:15px;font-weight:700;letter-spacing:-.3px;}
+.card-body{padding:20px;}
+
+/* Poker cards */
+.pk{display:inline-flex;align-items:center;justify-content:center;width:52px;height:72px;border-radius:6px;font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700;background:#fff;border:1.5px solid #d4d4dc;box-shadow:0 2px 6px rgba(0,0,0,.12);margin:3px;flex-direction:column;gap:0;line-height:1;user-select:none;position:relative;transition:transform .2s,box-shadow .2s;}
+.pk .pk-rank{font-size:15px;font-weight:800;}.pk .pk-suit{font-size:16px;}
+.pk.h .pk-rank,.pk.d .pk-rank{color:#dc2626;}.pk.h .pk-suit,.pk.d .pk-suit{color:#dc2626;}
+.pk.s .pk-rank,.pk.c .pk-rank{color:#1a1a2e;}.pk.s .pk-suit,.pk.c .pk-suit{color:#1a1a2e;}
+.pk.facedown{background:linear-gradient(135deg,#1e3a8a,#1e40af);border-color:#1e3a8a;}
+.pk.facedown .pk-rank,.pk.facedown .pk-suit{display:none;}
+.pk.facedown::after{content:'';position:absolute;inset:4px;border-radius:3px;border:1.5px solid rgba(255,255,255,.2);background:repeating-linear-gradient(45deg,transparent,transparent 3px,rgba(255,255,255,.05) 3px,rgba(255,255,255,.05) 6px);}
+.pk.highlight{box-shadow:0 0 0 2px var(--accent),0 4px 12px rgba(34,197,94,.3);transform:translateY(-2px);}
+.pk.out-card{width:36px;height:50px;font-size:10px;margin:2px;}.pk.out-card .pk-rank{font-size:11px;}.pk.out-card .pk-suit{font-size:12px;}
+
+/* Card areas */
+.board-area{display:flex;align-items:center;justify-content:center;gap:4px;margin:12px 0;flex-wrap:wrap;}
+.hero-area{display:flex;align-items:center;justify-content:center;gap:4px;margin:8px 0;}
+
+/* Deal animation */
+.pk.deal-anim{animation:dealIn .35s ease-out both;}.pk.deal-anim:nth-child(1){animation-delay:.05s;}.pk.deal-anim:nth-child(2){animation-delay:.12s;}.pk.deal-anim:nth-child(3){animation-delay:.19s;}.pk.deal-anim:nth-child(4){animation-delay:.26s;}.pk.deal-anim:nth-child(5){animation-delay:.33s;}
+@keyframes dealIn{from{opacity:0;transform:translateY(-20px) scale(.8) rotateY(90deg)}to{opacity:1;transform:none}}
+
+/* Flip animation */
+.pk.flip-anim{animation:flipIn .5s ease-out both;}
+@keyframes flipIn{0%{transform:rotateY(180deg) scale(.8);opacity:0}50%{transform:rotateY(90deg) scale(.9);opacity:.5}100%{transform:rotateY(0) scale(1);opacity:1}}
+
+/* Buttons */
+.btn{padding:9px 18px;border:none;border-radius:8px;font-family:'Inter',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:all .12s;display:inline-flex;align-items:center;gap:6px;letter-spacing:.2px;}
+.btn-p{background:var(--accent);color:white;}.btn-p:hover{background:var(--accent2);}
+.btn-s{background:transparent;color:var(--text2);border:1px solid var(--border2);}.btn-s:hover{background:var(--bg3);color:var(--text);}
+.btn-g{background:var(--green);color:white;}.btn-g:hover{opacity:.9;}
+.btn-d{background:transparent;color:var(--text4);border:1px solid var(--border);}.btn-d:hover{background:var(--redBg);color:var(--red);}
+.btn:disabled{opacity:.4;cursor:not-allowed;pointer-events:none;}
+.btn-lg{padding:14px 32px;font-size:15px;font-weight:700;border-radius:12px;}
+
+/* Checkbox group */
+.chk-group{display:flex;flex-direction:column;gap:6px;margin:12px 0;}
+.chk-item{display:flex;align-items:center;gap:10px;padding:10px 14px;border:1px solid var(--border);border-radius:10px;cursor:pointer;transition:all .12s;background:var(--bg2);user-select:none;}
+.chk-item:hover{border-color:var(--border2);background:var(--bg3);}
+.chk-item.selected{border-color:var(--accent);background:var(--accentBg);box-shadow:0 0 0 1px rgba(34,197,94,.2);}
+.chk-item.correct{border-color:var(--green);background:var(--greenBg);}
+.chk-item.wrong{border-color:var(--red);background:var(--redBg);}
+.chk-item.missed{border-color:var(--gold);background:var(--goldBg);}
+.chk-box{width:18px;height:18px;border:2px solid var(--border2);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:11px;color:white;transition:all .12s;flex-shrink:0;}
+.chk-item.selected .chk-box{background:var(--accent);border-color:var(--accent);}
+.chk-item.correct .chk-box{background:var(--green);border-color:var(--green);}
+.chk-item.wrong .chk-box{background:var(--red);border-color:var(--red);}
+.chk-item.missed .chk-box{background:var(--gold);border-color:var(--gold);}
+.chk-label{font-size:13px;font-weight:600;flex:1;}
+.chk-detail{font-size:11px;color:var(--text3);font-family:'JetBrains Mono',monospace;}
+
+/* Input row */
+.input-row{display:flex;gap:8px;align-items:center;margin:8px 0;}
+.input-row label{font-size:12px;font-weight:600;color:var(--text2);min-width:100px;}
+.input-row input[type="number"]{width:60px;padding:8px 10px;border:1px solid var(--border2);border-radius:8px;font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:600;background:var(--surfaceSolid);color:var(--text);outline:none;text-align:center;transition:border-color .2s;}
+.input-row input[type="number"]:focus{border-color:var(--accent);}
+.input-row .result-icon{font-size:16px;}
+
+/* Outs display */
+.outs-list{display:flex;flex-wrap:wrap;gap:4px;margin:6px 0;}
+
+/* Result panel */
+.result-box{padding:14px;border-radius:10px;margin:10px 0;border:1px solid var(--border);}
+.result-box.correct-box{background:var(--greenBg);border-color:var(--green);}
+.result-box.wrong-box{background:var(--redBg);border-color:var(--red);}
+.result-title{font-size:13px;font-weight:700;margin-bottom:6px;}
+.result-detail{font-size:12px;color:var(--text2);line-height:1.6;}
+
+/* Progress dots */
+.prog{display:flex;gap:4px;align-items:center;justify-content:center;margin:12px 0;}
+.prog .dot{width:10px;height:10px;border-radius:50%;background:var(--bg4);transition:all .2s;}
+.prog .dot.done{background:var(--accent);}.prog .dot.wrong-dot{background:var(--red);}.prog .dot.current{background:var(--gold);transform:scale(1.3);}
+
+/* Step indicator */
+.step-ind{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:700;color:var(--accent);background:var(--accentBg);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;}
+
+/* Stats row */
+.stats-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:20px;}
+@media(max-width:700px){.stats-row{grid-template-columns:1fr;}}
+.stat-bar-anim{transform-origin:bottom;transition:height .6s cubic-bezier(.34,1.56,.64,1);}
+
+/* Set summary */
+.set-summary{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:24px;text-align:center;}
+.set-score{font-family:'JetBrains Mono',monospace;font-size:48px;font-weight:900;margin:12px 0;}
+.set-score.great{color:var(--green);}.set-score.ok{color:var(--gold);}.set-score.poor{color:var(--red);}
+
+/* List items */
+.li{padding:14px 16px;border:1px solid var(--border);border-radius:10px;margin-bottom:8px;cursor:pointer;transition:all .12s;background:var(--bg2);}
+.li:hover{border-color:var(--border2);background:var(--bg3);}
+.li.expanded{border-color:var(--accent);background:var(--accentBg);}
+.li-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;}
+.li-bot{display:flex;justify-content:space-between;align-items:center;margin-top:4px;}
+.li-expand{margin-top:12px;border-top:1px solid var(--border);padding-top:12px;display:none;}
+.li.expanded .li-expand{display:block;}
+.hand-review{padding:10px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;background:var(--bg2);}
+.hand-review-cards{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;}
+
+/* Empty */
+.empty{text-align:center;padding:48px 24px;color:var(--text4);}
+.empty-icon{font-size:32px;margin-bottom:12px;opacity:.4;}.empty-text{font-size:14px;font-weight:500;margin-bottom:16px;}
+
+/* Settings */
+.setting-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);}
+.setting-row:last-child{border:none;}
+.setting-label{font-size:13px;font-weight:600;}
+.setting-sub{font-size:11px;color:var(--text3);}
+.setting-ctrl select,.setting-ctrl input[type="number"]{padding:6px 10px;border:1px solid var(--border2);border-radius:6px;font-family:'Inter',sans-serif;font-size:12px;background:var(--bg2);color:var(--text);outline:none;font-weight:500;}
+
+/* Confetti */
+.confetti-wrap{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9999;overflow:hidden;}
+.confetti-p{position:absolute;width:8px;height:8px;border-radius:2px;animation:confettiFall 1.2s ease-out forwards;}
+@keyframes confettiFall{0%{opacity:1;transform:translateY(0) rotate(0deg) scale(1);}100%{opacity:0;transform:translateY(80vh) rotate(720deg) scale(0.3);}}
+
+/* Prob display */
+.prob-row{display:flex;align-items:center;gap:12px;padding:6px 0;font-size:12px;}
+.prob-label{font-weight:600;min-width:80px;}
+.prob-val{font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--accent);}
+.prob-approx{font-family:'JetBrains Mono',monospace;color:var(--text3);font-size:11px;}
+
+/* Responsive */
+@media(max-width:600px){
+.main{padding:12px;}.nav{padding:0 12px;}.nav-brand span{display:none;}
+.pk{width:44px;height:62px;font-size:12px;}.pk .pk-rank{font-size:13px;}.pk .pk-suit{font-size:14px;}
+.pk.out-card{width:30px;height:42px;}.pk.out-card .pk-rank{font-size:9px;}.pk.out-card .pk-suit{font-size:10px;}
+.stat-bar{gap:6px;}.stat-box{padding:8px 6px;min-width:70px;}.sv{font-size:18px;}
+.stats-row{grid-template-columns:1fr 1fr;}
+}
+</style>
+</head>
+<body>
+<nav class="nav">
+<div class="nav-brand">
+<svg viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2"><path d="M12 2C12 2 14 6 14 10C14 12 16 12 16 10C18 14 20 18 16 22C14 23 12 24 12 24C12 24 10 23 8 22C4 18 6 14 8 10C8 12 10 12 10 10C10 6 12 2 12 2Z"/></svg>
+<span>Equity Trainer</span>
+</div>
+<div class="nav-tabs" id="navTabs"></div>
+<div class="nav-right">
+<button class="thbtn" id="themeBtn" title="Toggle theme"></button>
+</div>
+</nav>
+<div class="main">
+<div class="tc" id="tTasks"></div>
+<div class="tc" id="tList"></div>
+<div class="tc" id="tStats"></div>
+</div>
+
+<script>
+'use strict';
+
+/* ============================================================
+   CONSTANTS
+   ============================================================ */
+const SUITS = ['s','h','d','c'];
+const RANKS = ['2','3','4','5','6','7','8','9','T','J','Q','K','A'];
+const RANK_VAL = {2:2,3:3,4:4,5:5,6:6,7:7,8:8,9:9,T:10,J:11,Q:12,K:13,A:14};
+const SUIT_SYM = {s:'\u2660',h:'\u2665',d:'\u2666',c:'\u2663'};
+const SUIT_NAME = {s:'Spade',h:'Heart',d:'Diamond',c:'Club'};
+
+const DRAW_TYPES = [
+  {id:'flush_draw',    label:'Flush Draw',     desc:'4 to a flush (9 outs)'},
+  {id:'oesd',          label:'OESD',           desc:'Open-ended straight draw (8 outs)'},
+  {id:'gutshot',       label:'Gutshot',        desc:'Inside straight draw (4 outs)'},
+  {id:'overcards',     label:'Overcards',      desc:'Cards above board high (3 each)'},
+  {id:'pair_improve',  label:'Pair Improvement',desc:'Pair→Trips/2P, 2P→FH, Set→FH/Quads'},
+];
+
+const TABS = [{id:'tasks',label:'TASKS'},{id:'list',label:'LIST'},{id:'stats',label:'STATS'}];
+const SK = {DATA:'pet1',TAB:'pet_tab',THEME:'pet_theme'};
+
+/* ============================================================
+   DATA
+   ============================================================ */
+let D = {
+  sets: [],
+  dailyLog: {},
+  settings: {handsPerSet:10, drawTypes:DRAW_TYPES.map(d=>d.id)}
+};
+
+function td(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function save(){try{localStorage.setItem(SK.DATA,JSON.stringify(D));}catch(e){}}
+function load(){try{const s=localStorage.getItem(SK.DATA);if(s){const p=JSON.parse(s);Object.assign(D,p);if(!D.settings)D.settings={handsPerSet:10,drawTypes:DRAW_TYPES.map(d=>d.id)};if(!D.dailyLog)D.dailyLog={};}}catch(e){}}
+
+/* ============================================================
+   DECK & CARD UTILITIES
+   ============================================================ */
+function makeDeck(){
+  const d=[];
+  for(const s of SUITS)for(const r of RANKS)d.push({r,s});
+  return d;
+}
+function shuffle(arr){
+  const a=[...arr];
+  for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}
+  return a;
+}
+function cardKey(c){return c.r+c.s;}
+function cardEq(a,b){return a.r===b.r&&a.s===b.s;}
+function rv(c){return RANK_VAL[c.r];}
+
+function cardHTML(c, extra=''){
+  if(!c) return `<div class="pk facedown ${extra}"><span class="pk-rank"></span><span class="pk-suit"></span></div>`;
+  return `<div class="pk ${c.s} ${extra}"><span class="pk-rank">${c.r}</span><span class="pk-suit">${SUIT_SYM[c.s]}</span></div>`;
+}
+
+/* ============================================================
+   MADE HAND EVALUATION
+   ============================================================ */
+function evaluateMadeHand(hero, board){
+  const all = [...hero, ...board];
+  const vals = all.map(c=>rv(c)).sort((a,b)=>b-a);
+  const suits = {};
+  all.forEach(c=>{if(!suits[c.s])suits[c.s]=[];suits[c.s].push(rv(c));});
+
+  // Flush check
+  let flushSuit=null;
+  for(const s in suits){if(suits[s].length>=5)flushSuit=s;}
+
+  // Straight check
+  function hasStraight(vs){
+    const u=[...new Set(vs)].sort((a,b)=>b-a);
+    if(u.includes(14))u.push(1); // Ace low
+    for(let i=0;i<=u.length-5;i++){
+      let ok=true;
+      for(let j=1;j<5;j++){if(u[i]-j!==u[i+j]){ok=false;break;}}
+      if(ok)return u[i];
+    }
+    return 0;
+  }
+
+  // Rank counts
+  const rc={};vals.forEach(v=>{rc[v]=(rc[v]||0)+1;});
+  const groups=Object.entries(rc).map(([v,c])=>({v:+v,c})).sort((a,b)=>b.c-a.c||b.v-a.v);
+
+  const isFlush = flushSuit!==null;
+  const straightHigh = hasStraight(vals);
+  const isStraight = straightHigh>0;
+
+  // Straight flush check
+  let isStraightFlush=false;
+  if(isFlush){
+    const sfHigh=hasStraight(suits[flushSuit]);
+    if(sfHigh>0)isStraightFlush=true;
+  }
+
+  if(isStraightFlush) return {rank:8,name:'Straight Flush'};
+  if(groups[0].c>=4) return {rank:7,name:'Four of a Kind'};
+  if(groups[0].c>=3 && groups.length>=2 && groups[1].c>=2) return {rank:6,name:'Full House'};
+  if(isFlush) return {rank:5,name:'Flush'};
+  if(isStraight) return {rank:4,name:'Straight'};
+  if(groups[0].c>=3) return {rank:3,name:'Three of a Kind'};
+  if(groups[0].c>=2 && groups.length>=2 && groups[1].c>=2) return {rank:2,name:'Two Pair'};
+  if(groups[0].c>=2) return {rank:1,name:'One Pair'};
+  return {rank:0,name:'High Card'};
+}
+
+/* ============================================================
+   DRAW DETECTION
+   ============================================================ */
+function detectAllDraws(hero, board, enabledTypes){
+  const all=[...hero,...board];
+  const allKeys=new Set(all.map(cardKey));
+  const draws=[];
+  const madeHand=evaluateMadeHand(hero,board);
+
+  // --- Flush Draw ---
+  if(enabledTypes.includes('flush_draw') && madeHand.rank<5){
+    const suitCounts={};
+    all.forEach(c=>{if(!suitCounts[c.s])suitCounts[c.s]=0;suitCounts[c.s]++;});
+    for(const s in suitCounts){
+      if(suitCounts[s]===4){
+        // Must involve at least 1 hero card
+        const heroInSuit=hero.filter(c=>c.s===s).length;
+        if(heroInSuit>=1){
+          const outs=[];
+          for(const r of RANKS){
+            const k=r+s;
+            if(!allKeys.has(k))outs.push({r,s});
+          }
+          draws.push({type:'flush_draw',label:'Flush Draw',outs,desc:`${SUIT_NAME[s]} flush draw`});
+        }
+      }
+    }
+  }
+
+  // --- Straight draws (OESD + Gutshot) ---
+  if(enabledTypes.includes('oesd')||enabledTypes.includes('gutshot')){
+    if(madeHand.rank<4){
+      const straightDraws=detectStraightDraws(hero,board,allKeys);
+      straightDraws.forEach(sd=>{
+        if(sd.type==='oesd' && enabledTypes.includes('oesd'))draws.push(sd);
+        if(sd.type==='gutshot' && enabledTypes.includes('gutshot'))draws.push(sd);
+      });
+    }
+  }
+
+  // --- Overcards ---
+  if(enabledTypes.includes('overcards') && madeHand.rank<1){
+    const boardMax=Math.max(...board.map(c=>rv(c)));
+    const overCards=hero.filter(c=>rv(c)>boardMax);
+    if(overCards.length>0){
+      const outs=[];
+      overCards.forEach(hc=>{
+        for(const s of SUITS){
+          const k=hc.r+s;
+          if(!allKeys.has(k))outs.push({r:hc.r,s});
+        }
+      });
+      draws.push({type:'overcards',label:'Overcards',outs,desc:`${overCards.map(c=>c.r).join(',')} over the board`});
+    }
+  }
+
+  // --- Pair Improvement ---
+  if(enabledTypes.includes('pair_improve') && madeHand.rank>=1 && madeHand.rank<=3){
+    const pairImproveOuts=detectPairImprove(hero,board,allKeys,madeHand);
+    if(pairImproveOuts.length>0){
+      draws.push({type:'pair_improve',label:'Pair Improvement',outs:pairImproveOuts,desc:getPairImproveDesc(madeHand)});
+    }
+  }
+
+  return draws;
+}
+
+function detectStraightDraws(hero,board,allKeys){
+  const all=[...hero,...board];
+  const vals=[...new Set(all.map(c=>rv(c)))].sort((a,b)=>a-b);
+  if(vals.includes(14))vals.unshift(1); // Ace can be low
+
+  const heroVals=new Set(hero.map(c=>rv(c)));
+  if(hero.some(c=>rv(c)===14))heroVals.add(1);
+
+  const results=[];
+  const seen=new Set();
+
+  // Check all possible 5-card straight windows
+  for(let low=1;low<=10;low++){
+    const high=low+4;
+    const window=[];
+    for(let v=low;v<=high;v++)window.push(v);
+
+    const have=window.filter(v=>vals.includes(v));
+    const miss=window.filter(v=>!vals.includes(v));
+
+    // Must use at least 1 hero card in the straight
+    const heroContrib=have.filter(v=>heroVals.has(v)).length;
+    if(heroContrib<1)continue;
+
+    if(have.length===4 && miss.length===1){
+      // Gutshot: missing exactly 1 card in the middle
+      const missVal=miss[0];
+      // Check if it's truly a gutshot (missing card is interior)
+      const isInterior=missVal>low && missVal<high;
+
+      if(isInterior){
+        const key='gs_'+missVal;
+        if(!seen.has(key)){
+          seen.add(key);
+          const outs=[];
+          const needRank=missVal===1?'A':RANKS[missVal-2];
+          for(const s of SUITS){
+            if(!allKeys.has(needRank+s))outs.push({r:needRank,s});
+          }
+          results.push({type:'gutshot',label:'Gutshot',outs,desc:`Need ${needRank} for straight`});
+        }
+      }
+    }
+  }
+
+  // OESD: 4 consecutive cards, can extend on both ends
+  const sortedUnique=[...new Set(all.map(c=>rv(c)))].sort((a,b)=>a-b);
+  if(sortedUnique.includes(14))sortedUnique.unshift(1);
+
+  for(let i=0;i<=sortedUnique.length-4;i++){
+    const seq=[];
+    seq.push(sortedUnique[i]);
+    for(let j=i+1;j<sortedUnique.length&&seq.length<4;j++){
+      if(sortedUnique[j]===seq[seq.length-1]+1)seq.push(sortedUnique[j]);
+      else if(sortedUnique[j]>seq[seq.length-1]+1)break;
+    }
+    if(seq.length===4){
+      const lo=seq[0];
+      const hi=seq[3];
+      const canLow=lo>1;
+      const canHigh=hi<14;
+      // Must involve at least 1 hero card
+      const heroIn=seq.filter(v=>heroVals.has(v)).length;
+      if(heroIn<1)continue;
+
+      if(canLow&&canHigh){
+        const key='oesd_'+lo+'_'+hi;
+        if(!seen.has(key)){
+          seen.add(key);
+          const outs=[];
+          const lowRank=(lo-1)===1?'A':RANKS[lo-3];
+          const highRank=RANKS[hi-1];
+          for(const s of SUITS){
+            if(!allKeys.has(lowRank+s))outs.push({r:lowRank,s});
+            if(!allKeys.has(highRank+s))outs.push({r:highRank,s});
+          }
+          // Remove gutshots that this OESD covers
+          const gsToRemove=[];
+          results.forEach((r,idx)=>{
+            if(r.type==='gutshot'){
+              const gsVal=rv(r.outs[0]);
+              if(gsVal===lo-1||gsVal===hi+1)gsToRemove.push(idx);
+            }
+          });
+          gsToRemove.reverse().forEach(idx=>results.splice(idx,1));
+          results.push({type:'oesd',label:'OESD',outs,desc:`${RANKS[lo-2]||'A'}-${RANKS[hi-2]} open-ended`});
+        }
+      }
+    }
+  }
+
+  // Double gutshot detection: two separate gutshots = 8 outs, effectively OESD
+  const gutshots=results.filter(r=>r.type==='gutshot');
+  if(gutshots.length>=2){
+    // Merge into a single OESD-equivalent draw
+    const allOuts=[];
+    const outsSet=new Set();
+    gutshots.forEach(g=>{
+      g.outs.forEach(o=>{
+        const k=cardKey(o);
+        if(!outsSet.has(k)){outsSet.add(k);allOuts.push(o);}
+      });
+    });
+    if(allOuts.length>=8){
+      // Remove individual gutshots, add combined
+      gutshots.forEach(g=>{const idx=results.indexOf(g);if(idx>=0)results.splice(idx,1);});
+      results.push({type:'oesd',label:'Double Gutshot',outs:allOuts,desc:'Double gutshot (8 outs)'});
+    }
+  }
+
+  return results;
+}
+
+function detectPairImprove(hero,board,allKeys,madeHand){
+  const all=[...hero,...board];
+  const outs=[];
+  const outsSet=new Set();
+
+  function addOut(r,s){const k=r+s;if(!allKeys.has(k)&&!outsSet.has(k)){outsSet.add(k);outs.push({r,s});}}
+
+  if(madeHand.rank===1){
+    // One Pair → Two Pair or Trips
+    // Find which rank is the pair
+    const rc={};all.forEach(c=>{const v=c.r;rc[v]=(rc[v]||0)+1;});
+    const pairRank=Object.keys(rc).find(k=>rc[k]===2);
+    // Trips: remaining cards of pair rank
+    for(const s of SUITS)addOut(pairRank,s);
+    // Two Pair: hit other hero/board cards
+    const nonPairHero=hero.filter(c=>c.r!==pairRank);
+    nonPairHero.forEach(c=>{for(const s of SUITS)addOut(c.r,s);});
+  } else if(madeHand.rank===2){
+    // Two Pair → Full House
+    const rc={};all.forEach(c=>{const v=c.r;rc[v]=(rc[v]||0)+1;});
+    const pairRanks=Object.keys(rc).filter(k=>rc[k]===2);
+    pairRanks.forEach(pr=>{for(const s of SUITS)addOut(pr,s);});
+  } else if(madeHand.rank===3){
+    // Three of a Kind → Full House or Quads
+    const rc={};all.forEach(c=>{const v=c.r;rc[v]=(rc[v]||0)+1;});
+    const tripRank=Object.keys(rc).find(k=>rc[k]===3);
+    // Quads
+    for(const s of SUITS)addOut(tripRank,s);
+    // Full House: pair any other card
+    const others=[...new Set(all.filter(c=>c.r!==tripRank).map(c=>c.r))];
+    others.forEach(r=>{for(const s of SUITS)addOut(r,s);});
+  }
+  return outs;
+}
+
+function getPairImproveDesc(madeHand){
+  if(madeHand.rank===1)return 'Pair → Trips/Two Pair';
+  if(madeHand.rank===2)return 'Two Pair → Full House';
+  if(madeHand.rank===3)return 'Set → Full House/Quads';
+  return 'Pair improvement';
+}
+
+/* Compute total unique outs from multiple draws */
+function totalOuts(draws){
+  const s=new Set();
+  draws.forEach(d=>d.outs.forEach(o=>s.add(cardKey(o))));
+  return s.size;
+}
+
+/* Probability calculations */
+function calcProb(outs, remaining){
+  const exact=outs/remaining;
+  return {exact, pct:(exact*100).toFixed(1)};
+}
+function ruleOf(outs, streets){
+  return Math.min(outs * (streets===2?4:2), 100);
+}
+
+/* ============================================================
+   HAND GENERATION (ensures at least 1 draw)
+   ============================================================ */
+function generateHand(enabledTypes){
+  for(let attempt=0;attempt<200;attempt++){
+    const deck=shuffle(makeDeck());
+    const hero=[deck[0],deck[1]];
+    const flop=[deck[2],deck[3],deck[4]];
+    const turn=deck[5];
+    const river=deck[6];
+
+    const draws=detectAllDraws(hero,flop,enabledTypes);
+    if(draws.length>=1){
+      return {hero,flop,turn,river,draws};
+    }
+  }
+  // Fallback: just return something
+  const deck=shuffle(makeDeck());
+  return {hero:[deck[0],deck[1]],flop:[deck[2],deck[3],deck[4]],turn:deck[5],river:deck[6],draws:[]};
+}
+
+/* ============================================================
+   SOUND (Web Audio API)
+   ============================================================ */
+let audioCtx=null;
+function getAudio(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();return audioCtx;}
+function playSound(type){
+  try{
+    const ctx=getAudio();
+    const g=ctx.createGain();g.connect(ctx.destination);
+    const o=ctx.createOscillator();o.connect(g);
+    const t=ctx.currentTime;
+    if(type==='correct'){
+      o.type='sine';o.frequency.setValueAtTime(523,t);o.frequency.setValueAtTime(659,t+.08);o.frequency.setValueAtTime(784,t+.16);
+      g.gain.setValueAtTime(.15,t);g.gain.setTargetAtTime(.001,t+.2,.05);o.start(t);o.stop(t+.35);
+    }else if(type==='wrong'){
+      o.type='square';o.frequency.setValueAtTime(200,t);o.frequency.setValueAtTime(150,t+.1);
+      g.gain.setValueAtTime(.08,t);g.gain.setTargetAtTime(.001,t+.15,.05);o.start(t);o.stop(t+.3);
+    }else if(type==='complete'){
+      o.type='sine';o.frequency.setValueAtTime(523,t);o.frequency.setValueAtTime(659,t+.1);o.frequency.setValueAtTime(784,t+.2);o.frequency.setValueAtTime(1047,t+.3);
+      g.gain.setValueAtTime(.12,t);g.gain.setTargetAtTime(.001,t+.35,.05);o.start(t);o.stop(t+.55);
+    }else if(type==='deal'){
+      o.type='triangle';o.frequency.setValueAtTime(800,t);o.frequency.setTargetAtTime(200,t,.01);
+      g.gain.setValueAtTime(.06,t);g.gain.setTargetAtTime(.001,t+.05,.01);o.start(t);o.stop(t+.1);
+    }else if(type==='flip'){
+      o.type='sine';o.frequency.setValueAtTime(600,t);o.frequency.setValueAtTime(900,t+.05);
+      g.gain.setValueAtTime(.08,t);g.gain.setTargetAtTime(.001,t+.1,.02);o.start(t);o.stop(t+.2);
+    }
+  }catch(e){}
+}
+
+function fireConfetti(){
+  const wrap=document.createElement('div');wrap.className='confetti-wrap';document.body.appendChild(wrap);
+  const colors=['#22c55e','#16a34a','#f59e0b','#3b82f6','#ef4444','#a855f7','#ec4899'];
+  const cx=window.innerWidth/2,cy=window.innerHeight/3;
+  for(let i=0;i<50;i++){
+    const p=document.createElement('div');p.className='confetti-p';
+    p.style.background=colors[Math.floor(Math.random()*colors.length)];
+    p.style.left=(cx+Math.random()*300-150)+'px';
+    p.style.top=(cy+Math.random()*60-30)+'px';
+    p.style.animationDuration=(0.8+Math.random()*0.8)+'s';
+    p.style.animationDelay=(Math.random()*0.3)+'s';
+    p.style.width=(5+Math.random()*8)+'px';
+    p.style.height=(5+Math.random()*8)+'px';
+    wrap.appendChild(p);
+  }
+  setTimeout(()=>wrap.remove(),2500);
+}
+
+/* ============================================================
+   THEME
+   ============================================================ */
+function initTheme(){
+  const saved=localStorage.getItem(SK.THEME);
+  if(saved)document.documentElement.setAttribute('data-theme',saved);
+  updateThemeBtn();
+}
+function toggleTheme(){
+  const cur=document.documentElement.getAttribute('data-theme');
+  const next=cur==='dark'?'light':'dark';
+  document.documentElement.setAttribute('data-theme',next);
+  localStorage.setItem(SK.THEME,next);
+  updateThemeBtn();
+}
+function updateThemeBtn(){
+  const btn=document.getElementById('themeBtn');
+  const isDark=document.documentElement.getAttribute('data-theme')==='dark';
+  btn.textContent=isDark?'\u2600\uFE0F':'\uD83C\uDF19';
+}
+
+/* ============================================================
+   TAB MANAGEMENT
+   ============================================================ */
+let curTab='tasks';
+function initTabs(){
+  const nav=document.getElementById('navTabs');
+  nav.innerHTML=TABS.map(t=>`<button class="ntab${t.id===curTab?' active':''}" data-tab="${t.id}">${t.label}</button>`).join('');
+  nav.querySelectorAll('.ntab').forEach(b=>b.onclick=()=>switchTab(b.dataset.tab));
+}
+function switchTab(id){
+  curTab=id;
+  localStorage.setItem(SK.TAB,id);
+  document.querySelectorAll('.ntab').forEach(b=>b.classList.toggle('active',b.dataset.tab===id));
+  document.querySelectorAll('.tc').forEach(el=>el.classList.remove('active'));
+  const map={tasks:'tTasks',list:'tList',stats:'tStats'};
+  document.getElementById(map[id]).classList.add('active');
+  if(id==='tasks')rTasks();
+  else if(id==='list')rList();
+  else if(id==='stats')rStats();
+}
+
+/* ============================================================
+   GAME STATE
+   ============================================================ */
+let G = null; // current game state
+
+function resetGame(){
+  G = {
+    active: false,
+    hands: [],
+    currentHand: 0,
+    phase: 'idle', // idle, draw_select, outs_input, show_flop_result, turn_outs, show_turn_result, hand_done
+    currentHandData: null,
+    score: {drawCorrect:0, outsCorrect:0, totalChecks:0},
+    startTime: null,
+    results: [],
+    settings: {...D.settings}
+  };
+}
+
+/* ============================================================
+   TASKS TAB (Main Game)
+   ============================================================ */
+function rTasks(){
+  const el=document.getElementById('tTasks');
+  if(!G || !G.active){
+    renderIdleScreen(el);
+  } else {
+    renderGameScreen(el);
+  }
+}
+
+function renderIdleScreen(el){
+  let h=`<div style="text-align:center;padding:40px 0">`;
+  h+=`<div style="font-size:48px;margin-bottom:16px;opacity:.7">\u2660</div>`;
+  h+=`<h2 style="font-size:22px;font-weight:800;margin-bottom:8px">Poker Equity Trainer</h2>`;
+  h+=`<p style="font-size:14px;color:var(--text3);margin-bottom:32px">Practice identifying draws and calculating outs</p>`;
+  h+=`<button class="btn btn-p btn-lg" onclick="startSet()">Start Set</button>`;
+  h+=`</div>`;
+
+  // Settings
+  h+=`<div class="card" style="margin-top:24px"><div class="card-h"><span class="card-title">Settings</span></div><div class="card-body">`;
+  h+=`<div class="setting-row"><div><div class="setting-label">Hands per Set</div><div class="setting-sub">Number of hands in each set</div></div>`;
+  h+=`<div class="setting-ctrl"><select id="setHandsPerSet" onchange="D.settings.handsPerSet=+this.value;save();">`;
+  [5,10,15,20].forEach(n=>{h+=`<option value="${n}"${D.settings.handsPerSet===n?' selected':''}>${n}</option>`;});
+  h+=`</select></div></div>`;
+
+  h+=`<div class="setting-row"><div><div class="setting-label">Draw Types</div><div class="setting-sub">Which draws to include in questions</div></div></div>`;
+  DRAW_TYPES.forEach(dt=>{
+    const checked=D.settings.drawTypes.includes(dt.id);
+    h+=`<div class="setting-row" style="padding-left:16px"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px">`;
+    h+=`<input type="checkbox" ${checked?'checked':''} onchange="toggleDrawType('${dt.id}',this.checked)"> ${dt.label} <span style="color:var(--text4);font-size:11px">(${dt.desc})</span>`;
+    h+=`</label></div>`;
+  });
+
+  h+=`</div></div>`;
+
+  // Quick stats
+  const todayKey=td();
+  const todayData=D.dailyLog[todayKey]||{sets:0,questions:0,correct:0};
+  const totalSets=D.sets.length;
+  h+=`<div class="stat-bar" style="margin-top:20px">`;
+  h+=`<div class="stat-box"><div class="sv">${totalSets}</div><div class="sl">Total Sets</div></div>`;
+  h+=`<div class="stat-box"><div class="sv">${todayData.sets}</div><div class="sl">Today</div></div>`;
+  h+=`<div class="stat-box"><div class="sv">${todayData.questions}</div><div class="sl">Questions Today</div></div>`;
+  h+=`<div class="stat-box"><div class="sv gold">${todayData.questions?Math.round(todayData.correct/todayData.questions*100):0}%</div><div class="sl">Today Accuracy</div></div>`;
+  h+=`</div>`;
+
+  el.innerHTML=h;
+}
+
+function toggleDrawType(id,checked){
+  if(checked){if(!D.settings.drawTypes.includes(id))D.settings.drawTypes.push(id);}
+  else{D.settings.drawTypes=D.settings.drawTypes.filter(x=>x!==id);}
+  save();
+}
+
+function startSet(){
+  if(D.settings.drawTypes.length===0){alert('Please enable at least one draw type.');return;}
+  resetGame();
+  G.active=true;
+  G.settings={...D.settings};
+  G.startTime=Date.now();
+  // Generate all hands
+  for(let i=0;i<G.settings.handsPerSet;i++){
+    G.hands.push(generateHand(G.settings.drawTypes));
+  }
+  G.currentHand=0;
+  G.phase='draw_select';
+  G.currentHandData=G.hands[0];
+  playSound('deal');
+  rTasks();
+}
+
+function renderGameScreen(el){
+  const hand=G.currentHandData;
+  const handNum=G.currentHand+1;
+  const total=G.settings.handsPerSet;
+
+  let h='';
+
+  // Progress
+  h+=`<div class="prog">`;
+  for(let i=0;i<total;i++){
+    let cls='dot';
+    if(i<G.results.length){
+      const r=G.results[i];
+      cls+= r.perfect?' done':' wrong-dot';
+    }else if(i===G.currentHand){cls+=' current';}
+    h+=`<div class="${cls}"></div>`;
+  }
+  h+=`</div>`;
+  h+=`<div style="text-align:center;font-size:12px;color:var(--text3);margin-bottom:16px;font-family:'JetBrains Mono',monospace">Hand ${handNum} / ${total}</div>`;
+
+  // Hero cards
+  h+=`<div style="text-align:center;margin-bottom:4px;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:1px">Your Hand</div>`;
+  h+=`<div class="hero-area">${hand.hero.map(c=>cardHTML(c,'deal-anim')).join('')}</div>`;
+
+  // Board
+  h+=`<div style="text-align:center;margin:12px 0 4px;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:1px">Board</div>`;
+  h+=`<div class="board-area">`;
+  hand.flop.forEach(c=>{h+=cardHTML(c,'deal-anim');});
+
+  // Turn card
+  if(G.phase==='turn_outs'||G.phase==='show_turn_result'||G.phase==='hand_done'){
+    h+=cardHTML(hand.turn,'flip-anim highlight');
+  } else {
+    h+=cardHTML(null);
+  }
+  // River always facedown
+  h+=cardHTML(null);
+  h+=`</div>`;
+
+  // Made hand display
+  const madeHand=evaluateMadeHand(hand.hero,hand.flop);
+  h+=`<div style="text-align:center;margin:8px 0;font-size:13px;font-weight:600;color:var(--text2)">Made hand: <span style="color:var(--accent);font-weight:700">${madeHand.name}</span></div>`;
+
+  // Phase-specific content
+  if(G.phase==='draw_select') h+=renderDrawSelect(hand);
+  else if(G.phase==='outs_input') h+=renderOutsInput(hand);
+  else if(G.phase==='show_flop_result') h+=renderFlopResult(hand);
+  else if(G.phase==='turn_outs') h+=renderTurnOuts(hand);
+  else if(G.phase==='show_turn_result') h+=renderTurnResult(hand);
+  else if(G.phase==='hand_done') h+=renderHandDone(hand);
+  else if(G.phase==='set_complete') h+=renderSetComplete();
+
+  el.innerHTML=h;
+}
+
+/* --- STEP 1: Draw Selection --- */
+function renderDrawSelect(hand){
+  let h=`<div class="step-ind">Step 1: Identify Draws</div>`;
+  h+=`<p style="font-size:13px;color:var(--text2);margin-bottom:12px">Select all draws you can see:</p>`;
+  h+=`<div class="chk-group" id="drawCheckGroup">`;
+  DRAW_TYPES.filter(dt=>G.settings.drawTypes.includes(dt.id)).forEach(dt=>{
+    h+=`<div class="chk-item" data-draw="${dt.id}" onclick="toggleDraw(this)">`;
+    h+=`<div class="chk-box"></div>`;
+    h+=`<span class="chk-label">${dt.label}</span>`;
+    h+=`<span class="chk-detail">${dt.desc}</span>`;
+    h+=`</div>`;
+  });
+  h+=`</div>`;
+  h+=`<div style="display:flex;gap:8px;margin-top:16px"><button class="btn btn-p" onclick="submitDraws()">Submit Draws</button></div>`;
+  return h;
+}
+
+function toggleDraw(el){
+  el.classList.toggle('selected');
+  const box=el.querySelector('.chk-box');
+  box.textContent=el.classList.contains('selected')?'\u2713':'';
+}
+
+function submitDraws(){
+  const selected=new Set();
+  document.querySelectorAll('#drawCheckGroup .chk-item.selected').forEach(el=>{
+    selected.add(el.dataset.draw);
+  });
+
+  const correctDrawTypes=new Set(G.currentHandData.draws.map(d=>d.type));
+
+  // Store for scoring
+  G._drawSelection={selected,correct:correctDrawTypes};
+
+  // Score draw selection
+  let drawScore=0;
+  let drawTotal=0;
+  const allTypes=new Set([...selected,...correctDrawTypes]);
+  allTypes.forEach(t=>{
+    drawTotal++;
+    if(selected.has(t)&&correctDrawTypes.has(t))drawScore++;
+  });
+  G.score.totalChecks+=drawTotal;
+  G.score.drawCorrect+=drawScore;
+
+  // If any draws exist, go to outs input
+  if(G.currentHandData.draws.length>0){
+    G.phase='outs_input';
+  } else {
+    G.phase='show_flop_result';
+  }
+  playSound(drawScore===drawTotal&&drawTotal>0?'correct':'wrong');
+  rTasks();
+}
+
+/* --- STEP 2: Outs Input --- */
+function renderOutsInput(hand){
+  const draws=hand.draws;
+  let h=`<div class="step-ind">Step 2: Count Outs (Flop)</div>`;
+  h+=`<p style="font-size:13px;color:var(--text2);margin-bottom:12px">How many outs for each draw? (Remaining deck: 47 cards)</p>`;
+
+  draws.forEach((d,i)=>{
+    h+=`<div class="input-row">`;
+    h+=`<label>${d.label}</label>`;
+    h+=`<input type="number" id="outsInput_${i}" min="0" max="47" placeholder="?" onkeydown="if(event.key==='Enter')submitOuts()">`;
+    h+=`</div>`;
+  });
+
+  h+=`<div class="input-row" style="border-top:1px solid var(--border);padding-top:12px;margin-top:12px">`;
+  h+=`<label style="font-weight:700">Total Outs</label>`;
+  h+=`<input type="number" id="totalOutsInput" min="0" max="47" placeholder="?" onkeydown="if(event.key==='Enter')submitOuts()">`;
+  h+=`</div>`;
+
+  h+=`<div style="display:flex;gap:8px;margin-top:16px"><button class="btn btn-p" onclick="submitOuts()">Submit Outs</button></div>`;
+  return h;
+}
+
+function submitOuts(){
+  const draws=G.currentHandData.draws;
+  const answers=[];
+  draws.forEach((d,i)=>{
+    const input=document.getElementById('outsInput_'+i);
+    answers.push(input?parseInt(input.value)||0:0);
+  });
+  const totalAnswer=parseInt(document.getElementById('totalOutsInput')?.value)||0;
+  const correctTotal=totalOuts(draws);
+
+  G._outsAnswers={perDraw:answers,total:totalAnswer,correctTotal};
+
+  // Score outs
+  let outsScore=0;
+  draws.forEach((d,i)=>{
+    G.score.totalChecks++;
+    if(answers[i]===d.outs.length){outsScore++;G.score.outsCorrect++;}
+  });
+  // Total outs check
+  G.score.totalChecks++;
+  if(totalAnswer===correctTotal){G.score.outsCorrect++;}
+
+  G.phase='show_flop_result';
+  playSound(outsScore===draws.length?'correct':'wrong');
+  rTasks();
+}
+
+/* --- Show Flop Result --- */
+function renderFlopResult(hand){
+  const draws=hand.draws;
+  const drawSel=G._drawSelection||{selected:new Set(),correct:new Set()};
+  const outsAns=G._outsAnswers||{perDraw:[],total:0,correctTotal:0};
+
+  let h=`<div class="step-ind" style="color:var(--gold)">Results (Flop)</div>`;
+
+  // Draw selection results
+  h+=`<div class="card"><div class="card-h"><span class="card-title">Draw Selection</span></div><div class="card-body">`;
+  h+=`<div class="chk-group">`;
+  DRAW_TYPES.filter(dt=>G.settings.drawTypes.includes(dt.id)).forEach(dt=>{
+    const wasSelected=drawSel.selected.has(dt.id);
+    const isCorrect=drawSel.correct.has(dt.id);
+    let cls='chk-item';
+    if(wasSelected&&isCorrect)cls+=' correct';
+    else if(wasSelected&&!isCorrect)cls+=' wrong';
+    else if(!wasSelected&&isCorrect)cls+=' missed';
+    let icon='';
+    if(wasSelected&&isCorrect)icon='\u2713';
+    else if(wasSelected&&!isCorrect)icon='\u2717';
+    else if(!wasSelected&&isCorrect)icon='!';
+    h+=`<div class="${cls}"><div class="chk-box">${icon}</div><span class="chk-label">${dt.label}</span>`;
+    if(!wasSelected&&isCorrect)h+=`<span class="chk-detail" style="color:var(--gold)">Missed!</span>`;
+    h+=`</div>`;
+  });
+  h+=`</div></div></div>`;
+
+  // Outs results
+  if(draws.length>0){
+    h+=`<div class="card"><div class="card-h"><span class="card-title">Outs Analysis</span></div><div class="card-body">`;
+    draws.forEach((d,i)=>{
+      const ans=outsAns.perDraw[i]||0;
+      const correct=d.outs.length;
+      const isRight=ans===correct;
+      h+=`<div class="result-box ${isRight?'correct-box':'wrong-box'}">`;
+      h+=`<div class="result-title">${d.label}: ${d.desc}</div>`;
+      h+=`<div class="result-detail">`;
+      h+=`Your answer: <strong>${ans}</strong> | Correct: <strong>${correct} outs</strong>`;
+      if(!isRight)h+=` <span style="color:var(--red)">(off by ${Math.abs(ans-correct)})</span>`;
+      h+=`</div>`;
+      h+=`<div class="outs-list" style="margin-top:6px">${d.outs.map(o=>cardHTML(o,'out-card')).join('')}</div>`;
+      h+=`</div>`;
+    });
+
+    // Total outs
+    const correctTotal=outsAns.correctTotal||totalOuts(draws);
+    const totalAns=outsAns.total||0;
+    const totalRight=totalAns===correctTotal;
+    h+=`<div class="result-box ${totalRight?'correct-box':'wrong-box'}" style="margin-top:12px">`;
+    h+=`<div class="result-title">Total Unique Outs</div>`;
+    h+=`<div class="result-detail">Your answer: <strong>${totalAns}</strong> | Correct: <strong>${correctTotal}</strong></div>`;
+    h+=`</div>`;
+
+    // Probability
+    const remaining=47;
+    const prob=calcProb(correctTotal,remaining);
+    const rule2=ruleOf(correctTotal,2);
+    const rule1=ruleOf(correctTotal,1);
+    h+=`<div style="margin-top:12px;padding:12px;background:var(--bg2);border-radius:8px">`;
+    h+=`<div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;margin-bottom:8px">Equity</div>`;
+    h+=`<div class="prob-row"><span class="prob-label">Turn hit:</span><span class="prob-val">${prob.pct}%</span><span class="prob-approx">(${correctTotal}/${remaining})</span></div>`;
+    h+=`<div class="prob-row"><span class="prob-label">Rule of 4:</span><span class="prob-val">${rule2}%</span><span class="prob-approx">(${correctTotal}\u00D74, turn+river)</span></div>`;
+    h+=`<div class="prob-row"><span class="prob-label">Rule of 2:</span><span class="prob-val">${rule1}%</span><span class="prob-approx">(${correctTotal}\u00D72, one street)</span></div>`;
+    h+=`</div>`;
+
+    h+=`</div></div>`;
+  }
+
+  h+=`<div style="display:flex;gap:8px;margin-top:16px;justify-content:center">`;
+  h+=`<button class="btn btn-p" onclick="revealTurn()">Reveal Turn</button>`;
+  h+=`</div>`;
+  return h;
+}
+
+/* --- Reveal Turn --- */
+function revealTurn(){
+  G.phase='turn_outs';
+  playSound('flip');
+  rTasks();
+}
+
+/* --- Turn Outs Input --- */
+function renderTurnOuts(hand){
+  const allCards=[...hand.hero,...hand.flop,hand.turn];
+  const allKeys=new Set(allCards.map(cardKey));
+  // Recalculate draws with turn
+  const turnDraws=detectAllDraws(hand.hero,[...hand.flop,hand.turn],G.settings.drawTypes);
+  G._turnDraws=turnDraws;
+
+  const turnMade=evaluateMadeHand(hand.hero,[...hand.flop,hand.turn]);
+  let h=`<div style="text-align:center;margin:8px 0;font-size:13px;font-weight:600;color:var(--text2)">Made hand: <span style="color:var(--accent);font-weight:700">${turnMade.name}</span></div>`;
+
+  if(turnDraws.length===0){
+    h+=`<div class="step-ind">Turn Result</div>`;
+    h+=`<p style="font-size:13px;color:var(--text2);margin-bottom:12px">No more draws remaining. ${turnMade.rank>=4?'You made a strong hand!':'No draws left.'}</p>`;
+    h+=`<div style="display:flex;gap:8px;margin-top:16px;justify-content:center">`;
+    h+=`<button class="btn btn-p" onclick="finishHand()">Next Hand</button>`;
+    h+=`</div>`;
+    return h;
+  }
+
+  h+=`<div class="step-ind">Step 3: Count Outs (Turn)</div>`;
+  h+=`<p style="font-size:13px;color:var(--text2);margin-bottom:12px">Remaining draws after turn. (Remaining deck: 46 cards)</p>`;
+
+  turnDraws.forEach((d,i)=>{
+    h+=`<div class="input-row">`;
+    h+=`<label>${d.label}</label>`;
+    h+=`<input type="number" id="turnOutsInput_${i}" min="0" max="46" placeholder="?" onkeydown="if(event.key==='Enter')submitTurnOuts()">`;
+    h+=`</div>`;
+  });
+
+  h+=`<div class="input-row" style="border-top:1px solid var(--border);padding-top:12px;margin-top:12px">`;
+  h+=`<label style="font-weight:700">Total Outs</label>`;
+  h+=`<input type="number" id="turnTotalOutsInput" min="0" max="46" placeholder="?" onkeydown="if(event.key==='Enter')submitTurnOuts()">`;
+  h+=`</div>`;
+
+  h+=`<div style="display:flex;gap:8px;margin-top:16px"><button class="btn btn-p" onclick="submitTurnOuts()">Submit Outs</button></div>`;
+  return h;
+}
+
+function submitTurnOuts(){
+  const turnDraws=G._turnDraws||[];
+  const answers=[];
+  turnDraws.forEach((d,i)=>{
+    const input=document.getElementById('turnOutsInput_'+i);
+    answers.push(input?parseInt(input.value)||0:0);
+  });
+  const totalAnswer=parseInt(document.getElementById('turnTotalOutsInput')?.value)||0;
+  const correctTotal=totalOuts(turnDraws);
+
+  G._turnOutsAnswers={perDraw:answers,total:totalAnswer,correctTotal};
+
+  // Score
+  turnDraws.forEach((d,i)=>{
+    G.score.totalChecks++;
+    if(answers[i]===d.outs.length)G.score.outsCorrect++;
+  });
+  G.score.totalChecks++;
+  if(totalAnswer===correctTotal)G.score.outsCorrect++;
+
+  G.phase='show_turn_result';
+  playSound(totalAnswer===correctTotal?'correct':'wrong');
+  rTasks();
+}
+
+/* --- Turn Result --- */
+function renderTurnResult(hand){
+  const turnDraws=G._turnDraws||[];
+  const outsAns=G._turnOutsAnswers||{perDraw:[],total:0,correctTotal:0};
+
+  let h=`<div class="step-ind" style="color:var(--gold)">Results (Turn)</div>`;
+
+  if(turnDraws.length>0){
+    h+=`<div class="card"><div class="card-h"><span class="card-title">Turn Outs</span></div><div class="card-body">`;
+    turnDraws.forEach((d,i)=>{
+      const ans=outsAns.perDraw[i]||0;
+      const correct=d.outs.length;
+      const isRight=ans===correct;
+      h+=`<div class="result-box ${isRight?'correct-box':'wrong-box'}">`;
+      h+=`<div class="result-title">${d.label}: ${d.desc}</div>`;
+      h+=`<div class="result-detail">Your answer: <strong>${ans}</strong> | Correct: <strong>${correct} outs</strong></div>`;
+      h+=`<div class="outs-list" style="margin-top:6px">${d.outs.map(o=>cardHTML(o,'out-card')).join('')}</div>`;
+      h+=`</div>`;
+    });
+
+    const correctTotal=outsAns.correctTotal;
+    const totalAns=outsAns.total;
+    h+=`<div class="result-box ${totalAns===correctTotal?'correct-box':'wrong-box'}" style="margin-top:12px">`;
+    h+=`<div class="result-title">Total Unique Outs</div>`;
+    h+=`<div class="result-detail">Your answer: <strong>${totalAns}</strong> | Correct: <strong>${correctTotal}</strong></div>`;
+    h+=`</div>`;
+
+    // River probability
+    const prob=calcProb(correctTotal,46);
+    const rule1=ruleOf(correctTotal,1);
+    h+=`<div style="margin-top:12px;padding:12px;background:var(--bg2);border-radius:8px">`;
+    h+=`<div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;margin-bottom:8px">River Equity</div>`;
+    h+=`<div class="prob-row"><span class="prob-label">River hit:</span><span class="prob-val">${prob.pct}%</span><span class="prob-approx">(${correctTotal}/46)</span></div>`;
+    h+=`<div class="prob-row"><span class="prob-label">Rule of 2:</span><span class="prob-val">${rule1}%</span><span class="prob-approx">(${correctTotal}\u00D72)</span></div>`;
+    h+=`</div>`;
+
+    h+=`</div></div>`;
+  }
+
+  h+=`<div style="display:flex;gap:8px;margin-top:16px;justify-content:center">`;
+  h+=`<button class="btn btn-p" onclick="finishHand()">Next Hand</button>`;
+  h+=`</div>`;
+  return h;
+}
+
+/* --- Finish Hand --- */
+function finishHand(){
+  // Store result for this hand
+  const drawSel=G._drawSelection||{selected:new Set(),correct:new Set()};
+  const outsAns=G._outsAnswers||{perDraw:[],total:0,correctTotal:0};
+  const turnOuts=G._turnOutsAnswers||null;
+
+  let correctCount=0, totalCount=0;
+  // Draw selection scoring
+  const allTypes=new Set([...drawSel.selected,...drawSel.correct]);
+  allTypes.forEach(t=>{totalCount++;if(drawSel.selected.has(t)&&drawSel.correct.has(t))correctCount++;});
+  // Flop outs scoring
+  G.currentHandData.draws.forEach((d,i)=>{totalCount++;if((outsAns.perDraw[i]||0)===d.outs.length)correctCount++;});
+  totalCount++;if(outsAns.total===outsAns.correctTotal)correctCount++;
+  // Turn outs scoring
+  if(turnOuts&&G._turnDraws){
+    G._turnDraws.forEach((d,i)=>{totalCount++;if((turnOuts.perDraw[i]||0)===d.outs.length)correctCount++;});
+    totalCount++;if(turnOuts.total===turnOuts.correctTotal)correctCount++;
+  }
+
+  G.results.push({
+    hand:G.currentHandData,
+    drawSelection:{selected:[...drawSel.selected],correct:[...drawSel.correct]},
+    outsAnswers:outsAns,
+    turnOutsAnswers:turnOuts,
+    turnDraws:G._turnDraws||[],
+    correctCount,
+    totalCount,
+    perfect:correctCount===totalCount
+  });
+
+  // Next hand or set complete
+  G.currentHand++;
+  G._drawSelection=null;
+  G._outsAnswers=null;
+  G._turnOutsAnswers=null;
+  G._turnDraws=null;
+
+  if(G.currentHand>=G.settings.handsPerSet){
+    G.phase='set_complete';
+    completeSet();
+    playSound('complete');
+  }else{
+    G.currentHandData=G.hands[G.currentHand];
+    G.phase='draw_select';
+    playSound('deal');
+  }
+  rTasks();
+}
+
+function completeSet(){
+  const totalCorrect=G.results.reduce((s,r)=>s+r.correctCount,0);
+  const totalChecks=G.results.reduce((s,r)=>s+r.totalCount,0);
+  const pct=totalChecks>0?Math.round(totalCorrect/totalChecks*100):0;
+  const elapsed=Math.round((Date.now()-G.startTime)/1000);
+
+  const setRecord={
+    id:Date.now(),
+    date:td(),
+    handsCount:G.settings.handsPerSet,
+    score:pct,
+    correct:totalCorrect,
+    total:totalChecks,
+    elapsed,
+    results:G.results.map(r=>({
+      hero:r.hand.hero,
+      flop:r.hand.flop,
+      turn:r.hand.turn,
+      drawsCorrect:r.drawSelection.correct,
+      drawsSelected:r.drawSelection.selected,
+      flopDraws:r.hand.draws.map(d=>({type:d.type,label:d.label,outs:d.outs.length})),
+      outsAnswers:r.outsAnswers,
+      turnDraws:(r.turnDraws||[]).map(d=>({type:d.type,label:d.label,outs:d.outs.length})),
+      turnOutsAnswers:r.turnOutsAnswers,
+      correctCount:r.correctCount,
+      totalCount:r.totalCount,
+      perfect:r.perfect
+    }))
+  };
+
+  D.sets.push(setRecord);
+
+  // Daily log
+  const key=td();
+  if(!D.dailyLog[key])D.dailyLog[key]={sets:0,questions:0,correct:0};
+  D.dailyLog[key].sets++;
+  D.dailyLog[key].questions+=totalChecks;
+  D.dailyLog[key].correct+=totalCorrect;
+
+  save();
+  if(pct>=80)setTimeout(fireConfetti,300);
+}
+
+function renderSetComplete(){
+  const totalCorrect=G.results.reduce((s,r)=>s+r.correctCount,0);
+  const totalChecks=G.results.reduce((s,r)=>s+r.totalCount,0);
+  const pct=totalChecks>0?Math.round(totalCorrect/totalChecks*100):0;
+  const elapsed=Math.round((Date.now()-G.startTime)/1000);
+  const mins=Math.floor(elapsed/60);
+  const secs=elapsed%60;
+
+  let cls='ok';
+  if(pct>=80)cls='great';
+  else if(pct<50)cls='poor';
+
+  let h=`<div class="set-summary">`;
+  h+=`<div style="font-size:48px;margin-bottom:8px">${pct>=80?'\uD83C\uDFC6':pct>=50?'\uD83D\uDCAA':'\uD83D\uDCDA'}</div>`;
+  h+=`<div style="font-size:18px;font-weight:700;margin-bottom:4px">Set Complete!</div>`;
+  h+=`<div class="set-score ${cls}">${pct}%</div>`;
+  h+=`<div style="font-size:13px;color:var(--text2);margin-bottom:4px">${totalCorrect} / ${totalChecks} correct</div>`;
+  h+=`<div style="font-size:12px;color:var(--text3);margin-bottom:20px">Time: ${mins}m ${String(secs).padStart(2,'0')}s</div>`;
+
+  // Per-hand summary
+  h+=`<div style="text-align:left;margin-top:16px">`;
+  G.results.forEach((r,i)=>{
+    const hpct=r.totalCount>0?Math.round(r.correctCount/r.totalCount*100):0;
+    h+=`<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)">`;
+    h+=`<span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text4);min-width:30px">#${i+1}</span>`;
+    h+=`<span style="display:flex;gap:2px">${r.hand.hero.map(c=>cardHTML(c,'out-card')).join('')}</span>`;
+    h+=`<span style="flex:1;font-size:11px;color:var(--text3)">${r.hand.draws.map(d=>d.label).join(', ')||'No draws'}</span>`;
+    h+=`<span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:${hpct>=80?'var(--green)':hpct>=50?'var(--gold)':'var(--red)'}">${hpct}%</span>`;
+    h+=`</div>`;
+  });
+  h+=`</div>`;
+
+  h+=`<div style="display:flex;gap:8px;margin-top:24px;justify-content:center">`;
+  h+=`<button class="btn btn-p btn-lg" onclick="startSet()">New Set</button>`;
+  h+=`<button class="btn btn-s" onclick="G.active=false;rTasks()">Back to Menu</button>`;
+  h+=`</div>`;
+  h+=`</div>`;
+  return h;
+}
+
+/* ============================================================
+   LIST TAB
+   ============================================================ */
+let listSort='date';
+function rList(){
+  const el=document.getElementById('tList');
+  if(D.sets.length===0){
+    el.innerHTML=`<div class="empty"><div class="empty-icon">\uD83D\uDCCB</div><div class="empty-text">No completed sets yet</div><p style="font-size:12px;color:var(--text4)">Complete a set in the Tasks tab to see your history here</p></div>`;
+    return;
+  }
+
+  let sets=[...D.sets];
+  if(listSort==='score')sets.sort((a,b)=>b.score-a.score);
+  else sets.sort((a,b)=>b.id-a.id);
+
+  let h=`<div class="fb"><select onchange="listSort=this.value;rList()">`;
+  h+=`<option value="date"${listSort==='date'?' selected':''}>Sort: Date (newest)</option>`;
+  h+=`<option value="score"${listSort==='score'?' selected':''}>Sort: Score (highest)</option>`;
+  h+=`</select><span style="font-size:11px;color:var(--text3);margin-left:auto">${sets.length} sets</span></div>`;
+
+  sets.forEach(s=>{
+    const mins=Math.floor(s.elapsed/60);
+    const secs=s.elapsed%60;
+    const scoreClr=s.score>=80?'var(--green)':s.score>=50?'var(--gold)':'var(--red)';
+    h+=`<div class="li" onclick="this.classList.toggle('expanded')" data-set="${s.id}">`;
+    h+=`<div class="li-top">`;
+    h+=`<span style="font-size:14px;font-weight:700;color:${scoreClr};font-family:'JetBrains Mono',monospace">${s.score}%</span>`;
+    h+=`<span style="font-size:11px;color:var(--text3)">${s.date}</span>`;
+    h+=`</div>`;
+    h+=`<div class="li-bot">`;
+    h+=`<span style="font-size:11px;color:var(--text4)">${s.handsCount} hands \u2022 ${s.correct}/${s.total} correct</span>`;
+    h+=`<span style="font-size:11px;color:var(--text4);font-family:'JetBrains Mono',monospace">${mins}m${String(secs).padStart(2,'0')}s</span>`;
+    h+=`</div>`;
+
+    // Expanded detail
+    h+=`<div class="li-expand">`;
+    if(s.results){
+      s.results.forEach((r,i)=>{
+        const hpct=r.totalCount>0?Math.round(r.correctCount/r.totalCount*100):0;
+        h+=`<div class="hand-review">`;
+        h+=`<div class="hand-review-cards">`;
+        h+=`<span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text4)">#${i+1}</span>`;
+        r.hero.map(c=>cardHTML(c,'out-card')).forEach(c=>{h+=c;});
+        h+=`<span style="color:var(--text4);font-size:10px">|</span>`;
+        r.flop.map(c=>cardHTML(c,'out-card')).forEach(c=>{h+=c;});
+        h+=cardHTML(r.turn,'out-card');
+        h+=`</div>`;
+        h+=`<div style="display:flex;justify-content:space-between;align-items:center">`;
+        h+=`<span style="font-size:11px;color:var(--text3)">${r.flopDraws.map(d=>`${d.label}(${d.outs})`).join(', ')||'No draws'}</span>`;
+        h+=`<span style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;color:${hpct>=80?'var(--green)':hpct>=50?'var(--gold)':'var(--red)'}">${hpct}%</span>`;
+        h+=`</div>`;
+        h+=`</div>`;
+      });
+    }
+    h+=`</div>`;
+    h+=`</div>`;
+  });
+
+  el.innerHTML=h;
+}
+
+/* ============================================================
+   STATS TAB
+   ============================================================ */
+function rStats(){
+  const el=document.getElementById('tStats');
+  const totalSets=D.sets.length;
+  const totalQuestions=D.sets.reduce((s,x)=>s+x.total,0);
+  const totalCorrect=D.sets.reduce((s,x)=>s+x.correct,0);
+  const avgPct=totalQuestions>0?Math.round(totalCorrect/totalQuestions*100):0;
+
+  const todayKey=td();
+  const todayData=D.dailyLog[todayKey]||{sets:0,questions:0,correct:0};
+
+  // --- A. Top Stats Bar ---
+  let h=`<div class="stat-bar">`;
+  h+=`<div class="stat-box"><div class="sv" data-anim="${totalSets}" data-delay="0">0</div><div class="sl">Total Sets</div></div>`;
+  h+=`<div class="stat-box"><div class="sv" data-anim="${todayData.sets}" data-delay="80">0</div><div class="sl">Today</div></div>`;
+  h+=`<div class="stat-box"><div class="sv" data-anim="${totalQuestions}" data-delay="160">0</div><div class="sl">Questions</div></div>`;
+  h+=`<div class="stat-box"><div class="sv gold" data-anim="${avgPct}" data-delay="240" data-suffix="%">0</div><div class="sl">Accuracy</div></div>`;
+  h+=`</div>`;
+
+  // --- B+C+D Row ---
+  h+=`<div class="stats-row">`;
+
+  // --- B. Accuracy Ring ---
+  const circR=54,circC=2*Math.PI*circR;
+  const dashOff=circC*(1-avgPct/100);
+  h+=`<div class="card"><div class="card-h"><span class="card-title">Accuracy</span></div><div class="card-body" style="display:flex;flex-direction:column;align-items:center;gap:8px">`;
+  h+=`<div style="position:relative;width:130px;height:130px">`;
+  h+=`<svg viewBox="0 0 130 130" width="130" height="130"><circle cx="65" cy="65" r="${circR}" fill="none" stroke="var(--bg4)" stroke-width="10"/>`;
+  h+=`<circle class="mastery-ring" cx="65" cy="65" r="${circR}" fill="none" stroke="var(--accent)" stroke-width="10" stroke-linecap="round" transform="rotate(-90 65 65)" stroke-dasharray="${circC}" stroke-dashoffset="${circC}" data-target="${dashOff}"/></svg>`;
+  h+=`<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">`;
+  h+=`<span style="font-family:'JetBrains Mono',monospace;font-size:26px;font-weight:800;color:var(--accent)" data-anim="${avgPct}" data-delay="300" data-suffix="%">0</span>`;
+  h+=`</div></div>`;
+  h+=`<div style="font-size:12px;color:var(--text3)">${totalCorrect} of ${totalQuestions} correct</div>`;
+  h+=`</div></div>`;
+
+  // --- C. Day Streak ---
+  const logDates=new Set(Object.keys(D.dailyLog).filter(k=>D.dailyLog[k].sets>0));
+  let streak=0;
+  const today=new Date();
+  for(let i=0;i<365;i++){
+    const d=new Date(today);d.setDate(d.getDate()-i);
+    const dk=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    if(logDates.has(dk))streak++;else if(i>0)break;
+  }
+  const fSz=streak>=8?80:streak>=4?64:streak>=1?52:44;
+  const fClr=streak>=8?'var(--red)':streak>=4?'#f97316':streak>=1?'var(--gold)':'var(--text4)';
+  const fInner=streak>=4?'var(--gold)':'var(--surface)';
+  const fGlow=streak>=8?'drop-shadow(0 0 12px var(--red)) drop-shadow(0 0 24px #f97316)':streak>=4?'drop-shadow(0 0 8px #f97316)':'none';
+  const fMsg=streak>=8?"You're on fire!":streak>=4?'On a roll!':streak>=1?'Keep it up!':'Start your streak!';
+
+  h+=`<div class="card"><div class="card-h"><span class="card-title">Day Streak</span></div><div class="card-body" style="display:flex;flex-direction:column;align-items:center;gap:8px">`;
+  h+=`<div class="flame-anim" style="filter:${fGlow};line-height:1"><svg width="${fSz}" height="${fSz}" viewBox="0 0 64 64" fill="none"><path d="M32 4C32 4 38 16 38 24C38 28 42 28 44 24C48 32 52 40 44 52C40 56 36 58 32 58C28 58 24 56 20 52C12 40 16 32 20 24C22 28 26 28 26 24C26 16 32 4 32 4Z" fill="${fClr}" opacity=".85"/><path d="M32 20C32 20 36 28 36 34C36 40 32 46 32 46C32 46 28 40 28 34C28 28 32 20 32 20Z" fill="${fInner}" opacity=".7"/></svg></div>`;
+  h+=`<div style="font-family:'JetBrains Mono',monospace;font-size:28px;font-weight:800;color:${fClr};margin-top:4px" data-anim="${streak}" data-delay="200">0</div>`;
+  h+=`<div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-weight:600">Day${streak!==1?'s':''} Streak</div>`;
+  h+=`<div style="font-size:12px;color:var(--text2);font-weight:500;margin-top:2px">${fMsg}</div>`;
+  h+=`</div></div>`;
+
+  // --- D. Daily Activity (14 days) ---
+  const days14=[];
+  for(let i=13;i>=0;i--){
+    const d=new Date(today);d.setDate(d.getDate()-i);
+    const dk=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    const log=D.dailyLog[dk]||{sets:0,questions:0,correct:0};
+    days14.push({date:dk,day:d.getDate(),sets:log.sets,questions:log.questions,isToday:i===0});
+  }
+  const maxAct=Math.max(1,...days14.map(d=>d.sets+d.questions));
+
+  h+=`<div class="card"><div class="card-h"><span class="card-title">Daily Activity</span><span style="font-size:10px;color:var(--text3)">14 days</span></div><div class="card-body">`;
+  h+=`<div style="display:flex;align-items:end;gap:4px;height:100px;padding-bottom:20px;position:relative">`;
+  days14.forEach((d,i)=>{
+    const totalH=d.sets+d.questions;
+    const setPct=maxAct>0?(d.sets/maxAct*100):0;
+    const qPct=maxAct>0?(d.questions/maxAct*100):0;
+    h+=`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:0;position:relative">`;
+    h+=`<div style="width:100%;display:flex;flex-direction:column;justify-content:end;height:80px">`;
+    if(qPct>0)h+=`<div class="stat-bar-anim" style="width:100%;height:${qPct}%;background:var(--accent);border-radius:3px 3px 0 0;min-height:${d.questions>0?'3px':'0'};transform-origin:bottom;animation-delay:${i*40}ms"></div>`;
+    if(setPct>0)h+=`<div class="stat-bar-anim" style="width:100%;height:${setPct}%;background:var(--gold);border-radius:${d.questions>0?'0':'3px 3px'} 0 0;min-height:${d.sets>0?'3px':'0'};transform-origin:bottom;animation-delay:${i*40+20}ms"></div>`;
+    if(totalH===0)h+=`<div style="width:100%;height:3px;background:var(--bg4);border-radius:3px"></div>`;
+    h+=`</div>`;
+    h+=`<div style="font-size:8px;color:${d.isToday?'var(--gold)':'var(--text4)'};margin-top:4px;font-weight:${d.isToday?'700':'400'}">${d.day}</div>`;
+    h+=`</div>`;
+  });
+  h+=`</div>`;
+  h+=`<div style="display:flex;gap:14px;justify-content:center;margin-top:4px">`;
+  h+=`<div style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--text3)"><span style="width:8px;height:8px;border-radius:2px;background:var(--accent);display:inline-block"></span>Questions</div>`;
+  h+=`<div style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--text3)"><span style="width:8px;height:8px;border-radius:2px;background:var(--gold);display:inline-block"></span>Sets</div>`;
+  h+=`</div></div></div>`;
+
+  h+=`</div>`; // close stats-row
+
+  // --- E. Draw Type Accuracy ---
+  const drawTypeStats={};
+  DRAW_TYPES.forEach(dt=>{drawTypeStats[dt.id]={correct:0,total:0};});
+  D.sets.forEach(s=>{
+    if(!s.results)return;
+    s.results.forEach(r=>{
+      // Draw selection accuracy
+      const correctSet=new Set(r.drawsCorrect||[]);
+      const selectedSet=new Set(r.drawsSelected||[]);
+      DRAW_TYPES.forEach(dt=>{
+        if(correctSet.has(dt.id)||selectedSet.has(dt.id)){
+          drawTypeStats[dt.id].total++;
+          if(correctSet.has(dt.id)&&selectedSet.has(dt.id))drawTypeStats[dt.id].correct++;
+        }
+      });
+    });
+  });
+
+  const dtEntries=DRAW_TYPES.map(dt=>({
+    label:dt.label,
+    correct:drawTypeStats[dt.id].correct,
+    total:drawTypeStats[dt.id].total,
+    pct:drawTypeStats[dt.id].total>0?Math.round(drawTypeStats[dt.id].correct/drawTypeStats[dt.id].total*100):0
+  }));
+  const maxDT=Math.max(1,...dtEntries.map(e=>e.total));
+
+  h+=`<div class="card"><div class="card-h"><span class="card-title">Draw Type Accuracy</span></div><div class="card-body">`;
+  h+=`<div style="display:flex;align-items:end;gap:12px;height:140px;padding-bottom:28px">`;
+  dtEntries.forEach((e,i)=>{
+    const hPct=maxDT>0?(e.total/maxDT*100):0;
+    const color=e.pct>=80?'var(--green)':e.pct>=50?'var(--gold)':'var(--red)';
+    h+=`<div style="flex:1;display:flex;flex-direction:column;align-items:center;position:relative">`;
+    h+=`<div style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:${color};margin-bottom:4px" data-anim="${e.pct}" data-delay="${i*80}" data-suffix="%">0</div>`;
+    h+=`<div style="width:100%;height:100px;display:flex;flex-direction:column;justify-content:end">`;
+    h+=`<div class="stat-bar-anim" style="width:100%;height:${hPct}%;background:${color};border-radius:4px 4px 0 0;min-height:3px;transform-origin:bottom;animation-delay:${i*80}ms;opacity:.85"></div>`;
+    h+=`</div>`;
+    h+=`<div style="font-size:8px;color:var(--text3);margin-top:6px;font-weight:600;text-transform:uppercase;letter-spacing:.3px;text-align:center;line-height:1.2">${e.label}</div>`;
+    h+=`</div>`;
+  });
+  h+=`</div></div></div>`;
+
+  // --- F. Score Distribution ---
+  const scoreRanges=[{label:'90-100%',min:90,max:100},{label:'70-89%',min:70,max:89},{label:'50-69%',min:50,max:69},{label:'0-49%',min:0,max:49}];
+  const scoreCounts=scoreRanges.map(r=>D.sets.filter(s=>s.score>=r.min&&s.score<=r.max).length);
+  const maxScore=Math.max(1,...scoreCounts);
+
+  h+=`<div class="card"><div class="card-h"><span class="card-title">Score Distribution</span></div><div class="card-body">`;
+  h+=`<div style="display:flex;align-items:end;gap:12px;height:120px;padding-bottom:28px">`;
+  scoreRanges.forEach((r,i)=>{
+    const hPct=maxScore>0?(scoreCounts[i]/maxScore*100):0;
+    const colors=['var(--green)','var(--accent)','var(--gold)','var(--red)'];
+    h+=`<div style="flex:1;display:flex;flex-direction:column;align-items:center;position:relative">`;
+    h+=`<div style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:${colors[i]};margin-bottom:4px" data-anim="${scoreCounts[i]}" data-delay="${i*80+400}">0</div>`;
+    h+=`<div style="width:100%;height:80px;display:flex;flex-direction:column;justify-content:end">`;
+    h+=`<div class="stat-bar-anim" style="width:100%;height:${hPct}%;background:${colors[i]};border-radius:4px 4px 0 0;min-height:3px;transform-origin:bottom;animation-delay:${i*80+400}ms;opacity:.85"></div>`;
+    h+=`</div>`;
+    h+=`<div style="font-size:9px;color:var(--text3);margin-top:6px;font-weight:600">${r.label}</div>`;
+    h+=`</div>`;
+  });
+  h+=`</div></div></div>`;
+
+  el.innerHTML=h;
+
+  // Fire animations
+  requestAnimationFrame(()=>{
+    el.querySelectorAll('[data-anim]').forEach(e=>{
+      const target=parseInt(e.dataset.anim)||0;
+      const delay=parseInt(e.dataset.delay)||0;
+      const suffix=e.dataset.suffix||'';
+      setTimeout(()=>{
+        const start=performance.now();
+        function tick(now){
+          const t=Math.min((now-start)/600,1);
+          const ease=1-Math.pow(1-t,3);
+          e.textContent=Math.round(target*ease)+(t>=1?suffix:'');
+          if(t<1)requestAnimationFrame(tick);else e.textContent=target+suffix;
+        }
+        requestAnimationFrame(tick);
+      },delay);
+    });
+
+    const ring=el.querySelector('.mastery-ring');
+    if(ring){
+      const target=parseFloat(ring.dataset.target);
+      ring.style.transition='stroke-dashoffset 1s cubic-bezier(.23,1,.32,1)';
+      setTimeout(()=>{ring.style.strokeDashoffset=target;},100);
+    }
+  });
+}
+
+/* ============================================================
+   INIT
+   ============================================================ */
+(function init(){
+  load();
+  initTheme();
+  resetGame();
+  const savedTab=localStorage.getItem(SK.TAB);
+  if(savedTab && TABS.some(t=>t.id===savedTab))curTab=savedTab;
+  initTabs();
+  switchTab(curTab);
+  document.getElementById('themeBtn').onclick=toggleTheme;
+
+  // skillme integration
+  window.addEventListener('message',e=>{
+    if(e.data&&e.data.type==='skillme-ping'){
+      window.parent.postMessage({type:'skillme-pong',app:'poker-equity-trainer'},'*');
+    }
+  });
+})();
+</script>
+</body>
+</html>
