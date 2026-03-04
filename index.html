@@ -196,7 +196,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 <body>
 <nav class="nav">
 <div class="nav-brand">
-<svg viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2"><path d="M12 2C12 2 14 6 14 10C14 12 16 12 16 10C18 14 20 18 16 22C14 23 12 24 12 24C12 24 10 23 8 22C4 18 6 14 8 10C8 12 10 12 10 10C10 6 12 2 12 2Z"/></svg>
+<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="#22c55e" stroke-width="2"/><circle cx="12" cy="12" r="6" stroke="#22c55e" stroke-width="1.5"/><line x1="12" y1="2" x2="12" y2="5" stroke="#22c55e" stroke-width="2" stroke-linecap="round"/><line x1="12" y1="19" x2="12" y2="22" stroke="#22c55e" stroke-width="2" stroke-linecap="round"/><line x1="2" y1="12" x2="5" y2="12" stroke="#22c55e" stroke-width="2" stroke-linecap="round"/><line x1="19" y1="12" x2="22" y2="12" stroke="#22c55e" stroke-width="2" stroke-linecap="round"/></svg>
 <span>Equity Trainer</span>
 </div>
 <div class="nav-tabs" id="navTabs"></div>
@@ -239,12 +239,12 @@ const SK = {DATA:'pet1',TAB:'pet_tab',THEME:'pet_theme'};
 let D = {
   sets: [],
   dailyLog: {},
-  settings: {handsPerSet:10, drawTypes:DRAW_TYPES.map(d=>d.id)}
+  settings: {handsPerSet:10, drawTypes:DRAW_TYPES.filter(d=>d.id!=='pair_improve').map(d=>d.id)}
 };
 
 function td(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function save(){try{localStorage.setItem(SK.DATA,JSON.stringify(D));}catch(e){}}
-function load(){try{const s=localStorage.getItem(SK.DATA);if(s){const p=JSON.parse(s);Object.assign(D,p);if(!D.settings)D.settings={handsPerSet:10,drawTypes:DRAW_TYPES.map(d=>d.id)};if(!D.dailyLog)D.dailyLog={};}}catch(e){}}
+function load(){try{const s=localStorage.getItem(SK.DATA);if(s){const p=JSON.parse(s);Object.assign(D,p);if(!D.settings)D.settings={handsPerSet:10,drawTypes:DRAW_TYPES.filter(d=>d.id!=='pair_improve').map(d=>d.id)};if(!D.dailyLog)D.dailyLog={};}}catch(e){}}
 
 /* ============================================================
    DECK & CARD UTILITIES
@@ -360,9 +360,12 @@ function detectAllDraws(hero, board, enabledTypes){
   }
 
   // --- Overcards ---
-  if(enabledTypes.includes('overcards') && madeHand.rank<1){
+  if(enabledTypes.includes('overcards')){
     const boardMax=Math.max(...board.map(c=>rv(c)));
-    const overCards=hero.filter(c=>rv(c)>boardMax);
+    // Count how many of each rank appear in all cards
+    const rc={};all.forEach(c=>{rc[c.r]=(rc[c.r]||0)+1;});
+    // Overcard = hero card above board max AND not already paired
+    const overCards=hero.filter(c=>rv(c)>boardMax && rc[c.r]===1);
     if(overCards.length>0){
       const outs=[];
       overCards.forEach(hc=>{
@@ -376,7 +379,7 @@ function detectAllDraws(hero, board, enabledTypes){
   }
 
   // --- Pair Improvement ---
-  if(enabledTypes.includes('pair_improve') && madeHand.rank>=1 && madeHand.rank<=3){
+  if(enabledTypes.includes('pair_improve') && madeHand.rank>=0 && madeHand.rank<=3){
     const pairImproveOuts=detectPairImprove(hero,board,allKeys,madeHand);
     if(pairImproveOuts.length>0){
       draws.push({type:'pair_improve',label:'Pair Improvement',outs:pairImproveOuts,desc:getPairImproveDesc(madeHand)});
@@ -506,16 +509,25 @@ function detectPairImprove(hero,board,allKeys,madeHand){
 
   function addOut(r,s){const k=r+s;if(!allKeys.has(k)&&!outsSet.has(k)){outsSet.add(k);outs.push({r,s});}}
 
-  if(madeHand.rank===1){
+  if(madeHand.rank===0){
+    // High Card → One Pair (pair either hero card)
+    hero.forEach(c=>{for(const s of SUITS)addOut(c.r,s);});
+  } else if(madeHand.rank===1){
     // One Pair → Two Pair or Trips
-    // Find which rank is the pair
     const rc={};all.forEach(c=>{const v=c.r;rc[v]=(rc[v]||0)+1;});
     const pairRank=Object.keys(rc).find(k=>rc[k]===2);
-    // Trips: remaining cards of pair rank
-    for(const s of SUITS)addOut(pairRank,s);
-    // Two Pair: hit other hero/board cards
-    const nonPairHero=hero.filter(c=>c.r!==pairRank);
-    nonPairHero.forEach(c=>{for(const s of SUITS)addOut(c.r,s);});
+    const heroRanks=new Set(hero.map(c=>c.r));
+    const heroPaired=heroRanks.has(pairRank);
+
+    if(heroPaired){
+      // Hero holds the pair rank → Trips outs
+      for(const s of SUITS)addOut(pairRank,s);
+    }
+    // Hero hole cards that aren't the pair → hitting these makes Two Pair
+    hero.filter(c=>c.r!==pairRank).forEach(c=>{for(const s of SUITS)addOut(c.r,s);});
+    // Board side cards (non-pair rank) → hitting these also makes Two Pair on board
+    const boardNonPairRanks=[...new Set(board.filter(c=>c.r!==pairRank).map(c=>c.r))];
+    boardNonPairRanks.forEach(r=>{for(const s of SUITS)addOut(r,s);});
   } else if(madeHand.rank===2){
     // Two Pair → Full House
     const rc={};all.forEach(c=>{const v=c.r;rc[v]=(rc[v]||0)+1;});
@@ -535,6 +547,7 @@ function detectPairImprove(hero,board,allKeys,madeHand){
 }
 
 function getPairImproveDesc(madeHand){
+  if(madeHand.rank===0)return 'High Card → One Pair';
   if(madeHand.rank===1)return 'Pair → Trips/Two Pair';
   if(madeHand.rank===2)return 'Two Pair → Full House';
   if(madeHand.rank===3)return 'Set → Full House/Quads';
@@ -555,6 +568,17 @@ function calcProb(outs, remaining){
 }
 function ruleOf(outs, streets){
   return Math.min(outs * (streets===2?4:2), 100);
+}
+
+/* Pot odds scenario generation */
+function generatePotOdds(){
+  // Common bet sizing patterns (pot-relative)
+  const potSizes=[200,400,600,800,1000,1200,1500];
+  const betFractions=[0.33,0.5,0.66,0.75,1.0];
+  const pot=potSizes[Math.floor(Math.random()*potSizes.length)];
+  const bet=Math.round(pot*betFractions[Math.floor(Math.random()*betFractions.length)]/50)*50;
+  const potOddsPct=+(bet/(pot+bet+bet)*100).toFixed(1);
+  return {pot,bet,potOddsPct};
 }
 
 /* ============================================================
@@ -808,8 +832,11 @@ function renderGameScreen(el){
   if(G.phase==='draw_select') h+=renderDrawSelect(hand);
   else if(G.phase==='outs_input') h+=renderOutsInput(hand);
   else if(G.phase==='show_flop_result') h+=renderFlopResult(hand);
+  else if(G.phase==='pot_odds_flop') h+=renderPotOddsQuiz('flop');
+  else if(G.phase==='turn_draw_select') h+=renderTurnDrawSelect(hand);
   else if(G.phase==='turn_outs') h+=renderTurnOuts(hand);
   else if(G.phase==='show_turn_result') h+=renderTurnResult(hand);
+  else if(G.phase==='pot_odds_turn') h+=renderPotOddsQuiz('turn');
   else if(G.phase==='hand_done') h+=renderHandDone(hand);
   else if(G.phase==='set_complete') h+=renderSetComplete();
 
@@ -990,40 +1017,92 @@ function renderFlopResult(hand){
   }
 
   h+=`<div style="display:flex;gap:8px;margin-top:16px;justify-content:center">`;
-  h+=`<button class="btn btn-p" onclick="revealTurn()">Reveal Turn</button>`;
+  h+=`<button class="btn btn-p" onclick="startPotOddsFlop()">Next: Pot Odds</button>`;
   h+=`</div>`;
   return h;
 }
 
+function startPotOddsFlop(){
+  const outsAns=G._outsAnswers||{correctTotal:0};
+  G._potOddsFlop=generatePotOdds();
+  G._potOddsFlop.equity=ruleOf(outsAns.correctTotal,2); // Rule of 4 (2 streets)
+  G._potOddsFlop.equityExact=+(outsAns.correctTotal/47*100).toFixed(1);
+  G._potOddsFlop.outs=outsAns.correctTotal;
+  G.phase='pot_odds_flop';
+  rTasks();
+}
+
 /* --- Reveal Turn --- */
 function revealTurn(){
-  G.phase='turn_outs';
+  // Recalculate draws with turn card
+  const turnDraws=detectAllDraws(G.currentHandData.hero,[...G.currentHandData.flop,G.currentHandData.turn],G.settings.drawTypes);
+  G._turnDraws=turnDraws;
+
+  if(turnDraws.length===0){
+    // No draws on turn — skip straight to result
+    G.phase='show_turn_result';
+    G._turnDrawSelection={selected:new Set(),correct:new Set()};
+    G._turnOutsAnswers={perDraw:[],total:0,correctTotal:0};
+  } else {
+    G.phase='turn_draw_select';
+  }
   playSound('flip');
   rTasks();
 }
 
-/* --- Turn Outs Input --- */
-function renderTurnOuts(hand){
-  const allCards=[...hand.hero,...hand.flop,hand.turn];
-  const allKeys=new Set(allCards.map(cardKey));
-  // Recalculate draws with turn
-  const turnDraws=detectAllDraws(hand.hero,[...hand.flop,hand.turn],G.settings.drawTypes);
-  G._turnDraws=turnDraws;
-
+/* --- Turn Step 1: Draw Selection --- */
+function renderTurnDrawSelect(hand){
   const turnMade=evaluateMadeHand(hand.hero,[...hand.flop,hand.turn]);
   let h=`<div style="text-align:center;margin:8px 0;font-size:13px;font-weight:600;color:var(--text2)">Made hand: <span style="color:var(--accent);font-weight:700">${turnMade.name}</span></div>`;
 
-  if(turnDraws.length===0){
-    h+=`<div class="step-ind">Turn Result</div>`;
-    h+=`<p style="font-size:13px;color:var(--text2);margin-bottom:12px">No more draws remaining. ${turnMade.rank>=4?'You made a strong hand!':'No draws left.'}</p>`;
-    h+=`<div style="display:flex;gap:8px;margin-top:16px;justify-content:center">`;
-    h+=`<button class="btn btn-p" onclick="finishHand()">Next Hand</button>`;
+  h+=`<div class="step-ind">Step 3: Identify Draws (Turn)</div>`;
+  h+=`<p style="font-size:13px;color:var(--text2);margin-bottom:12px">Which draws remain after the turn?</p>`;
+  h+=`<div class="chk-group" id="turnDrawCheckGroup">`;
+  DRAW_TYPES.filter(dt=>G.settings.drawTypes.includes(dt.id)).forEach(dt=>{
+    h+=`<div class="chk-item" data-draw="${dt.id}" onclick="toggleDraw(this)">`;
+    h+=`<div class="chk-box"></div>`;
+    h+=`<span class="chk-label">${dt.label}</span>`;
+    h+=`<span class="chk-detail">${dt.desc}</span>`;
     h+=`</div>`;
-    return h;
-  }
+  });
+  h+=`</div>`;
+  h+=`<div style="display:flex;gap:8px;margin-top:16px"><button class="btn btn-p" onclick="submitTurnDraws()">Submit Draws</button></div>`;
+  return h;
+}
 
-  h+=`<div class="step-ind">Step 3: Count Outs (Turn)</div>`;
-  h+=`<p style="font-size:13px;color:var(--text2);margin-bottom:12px">Remaining draws after turn. (Remaining deck: 46 cards)</p>`;
+function submitTurnDraws(){
+  const selected=new Set();
+  document.querySelectorAll('#turnDrawCheckGroup .chk-item.selected').forEach(el=>{
+    selected.add(el.dataset.draw);
+  });
+  const turnDraws=G._turnDraws||[];
+  const correctDrawTypes=new Set(turnDraws.map(d=>d.type));
+
+  G._turnDrawSelection={selected,correct:correctDrawTypes};
+
+  // Score
+  let drawScore=0,drawTotal=0;
+  const allTypes=new Set([...selected,...correctDrawTypes]);
+  allTypes.forEach(t=>{drawTotal++;if(selected.has(t)&&correctDrawTypes.has(t))drawScore++;});
+  G.score.totalChecks+=drawTotal;
+  G.score.drawCorrect+=drawScore;
+
+  if(turnDraws.length>0){
+    G.phase='turn_outs';
+  } else {
+    G._turnOutsAnswers={perDraw:[],total:0,correctTotal:0};
+    G.phase='show_turn_result';
+  }
+  playSound(drawScore===drawTotal&&drawTotal>0?'correct':'wrong');
+  rTasks();
+}
+
+/* --- Turn Step 2: Outs Input --- */
+function renderTurnOuts(hand){
+  const turnDraws=G._turnDraws||[];
+
+  let h=`<div class="step-ind">Step 4: Count Outs (Turn)</div>`;
+  h+=`<p style="font-size:13px;color:var(--text2);margin-bottom:12px">How many outs for each draw? (Remaining deck: 46 cards)</p>`;
 
   turnDraws.forEach((d,i)=>{
     h+=`<div class="input-row">`;
@@ -1070,8 +1149,31 @@ function submitTurnOuts(){
 function renderTurnResult(hand){
   const turnDraws=G._turnDraws||[];
   const outsAns=G._turnOutsAnswers||{perDraw:[],total:0,correctTotal:0};
+  const turnDrawSel=G._turnDrawSelection||{selected:new Set(),correct:new Set()};
+  const turnMade=evaluateMadeHand(hand.hero,[...hand.flop,hand.turn]);
 
-  let h=`<div class="step-ind" style="color:var(--gold)">Results (Turn)</div>`;
+  let h=`<div style="text-align:center;margin:8px 0;font-size:13px;font-weight:600;color:var(--text2)">Made hand: <span style="color:var(--accent);font-weight:700">${turnMade.name}</span></div>`;
+  h+=`<div class="step-ind" style="color:var(--gold)">Results (Turn)</div>`;
+
+  // Draw selection results
+  h+=`<div class="card"><div class="card-h"><span class="card-title">Draw Selection (Turn)</span></div><div class="card-body">`;
+  h+=`<div class="chk-group">`;
+  DRAW_TYPES.filter(dt=>G.settings.drawTypes.includes(dt.id)).forEach(dt=>{
+    const wasSelected=turnDrawSel.selected.has(dt.id);
+    const isCorrect=turnDrawSel.correct.has(dt.id);
+    let cls='chk-item';
+    if(wasSelected&&isCorrect)cls+=' correct';
+    else if(wasSelected&&!isCorrect)cls+=' wrong';
+    else if(!wasSelected&&isCorrect)cls+=' missed';
+    let icon='';
+    if(wasSelected&&isCorrect)icon='\u2713';
+    else if(wasSelected&&!isCorrect)icon='\u2717';
+    else if(!wasSelected&&isCorrect)icon='!';
+    h+=`<div class="${cls}"><div class="chk-box">${icon}</div><span class="chk-label">${dt.label}</span>`;
+    if(!wasSelected&&isCorrect)h+=`<span class="chk-detail" style="color:var(--gold)">Missed!</span>`;
+    h+=`</div>`;
+  });
+  h+=`</div></div></div>`;
 
   if(turnDraws.length>0){
     h+=`<div class="card"><div class="card-h"><span class="card-title">Turn Outs</span></div><div class="card-body">`;
@@ -1106,12 +1208,116 @@ function renderTurnResult(hand){
   }
 
   h+=`<div style="display:flex;gap:8px;margin-top:16px;justify-content:center">`;
-  h+=`<button class="btn btn-p" onclick="finishHand()">Next Hand</button>`;
+  h+=`<button class="btn btn-p" onclick="startPotOddsTurn()">Next: Pot Odds</button>`;
   h+=`</div>`;
   return h;
 }
 
+function startPotOddsTurn(){
+  const turnOuts=G._turnOutsAnswers||{correctTotal:0};
+  G._potOddsTurn=generatePotOdds();
+  G._potOddsTurn.equity=ruleOf(turnOuts.correctTotal,1); // Rule of 2 (1 street)
+  G._potOddsTurn.equityExact=+(turnOuts.correctTotal/46*100).toFixed(1);
+  G._potOddsTurn.outs=turnOuts.correctTotal;
+  G.phase='pot_odds_turn';
+  rTasks();
+}
+
 /* --- Finish Hand --- */
+/* --- Pot Odds Quiz --- */
+function renderPotOddsQuiz(street){
+  const data=street==='flop'?G._potOddsFlop:G._potOddsTurn;
+  const answered=data._answered;
+
+  let h=`<div class="step-ind" style="color:var(--blue)">Pot Odds Decision${street==='flop'?' (Flop)':' (Turn)'}</div>`;
+
+  // Scenario display
+  h+=`<div class="card"><div class="card-h"><span class="card-title">Scenario</span></div><div class="card-body">`;
+  h+=`<div style="display:flex;gap:24px;justify-content:center;margin-bottom:16px;flex-wrap:wrap">`;
+  h+=`<div style="text-align:center"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;font-weight:700;letter-spacing:.5px">Pot</div><div style="font-family:'JetBrains Mono',monospace;font-size:28px;font-weight:800;color:var(--text)">${data.pot}</div></div>`;
+  h+=`<div style="text-align:center"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;font-weight:700;letter-spacing:.5px">Opponent Bets</div><div style="font-family:'JetBrains Mono',monospace;font-size:28px;font-weight:800;color:var(--red)">${data.bet}</div></div>`;
+  h+=`<div style="text-align:center"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;font-weight:700;letter-spacing:.5px">Your Outs</div><div style="font-family:'JetBrains Mono',monospace;font-size:28px;font-weight:800;color:var(--accent)">${data.outs}</div></div>`;
+  h+=`</div>`;
+
+  if(!answered){
+    h+=`<div class="input-row" style="justify-content:center"><label>Pot Odds %</label>`;
+    h+=`<input type="number" id="potOddsInput" min="0" max="100" step="0.1" placeholder="?" style="width:80px" onkeydown="if(event.key==='Enter')document.getElementById('potOddsNext').click()"></div>`;
+    h+=`<div style="display:flex;gap:8px;justify-content:center;margin:16px 0">`;
+    h+=`<button class="btn ${!data._decision?'btn-s':'btn-p'}" style="min-width:100px;${data._decision==='call'?'box-shadow:0 0 0 2px var(--accent)':''}" onclick="G._potOddsDecision='call';document.querySelectorAll('.po-btn').forEach(b=>b.className='btn btn-s po-btn');this.className='btn btn-p po-btn';this.style.boxShadow='0 0 0 2px var(--accent)'">Call</button>`;
+    h+=`<button class="btn ${!data._decision?'btn-s':'btn-p'}" style="min-width:100px;${data._decision==='fold'?'box-shadow:0 0 0 2px var(--red)':''}" onclick="G._potOddsDecision='fold';document.querySelectorAll('.po-btn').forEach(b=>b.className='btn btn-s po-btn');this.className='btn btn-d po-btn';this.style.boxShadow='0 0 0 2px var(--red)'">Fold</button>`;
+    h+=`</div>`;
+    h+=`<div style="display:flex;justify-content:center;margin-top:8px"><button class="btn btn-p" id="potOddsNext" onclick="submitPotOdds('${street}')">Submit</button></div>`;
+  } else {
+    // Show results
+    const userPotOdds=data._userPotOdds;
+    const userDecision=data._userDecision;
+    const correctPotOdds=data.potOddsPct;
+    const equity=data.equity;
+    const correctDecision=equity>=correctPotOdds?'call':'fold';
+    const potOddsCorrect=Math.abs(userPotOdds-correctPotOdds)<=1;
+    const decisionCorrect=userDecision===correctDecision;
+
+    // Pot odds result
+    h+=`<div class="result-box ${potOddsCorrect?'correct-box':'wrong-box'}">`;
+    h+=`<div class="result-title">Pot Odds</div>`;
+    h+=`<div class="result-detail">Your answer: <strong>${userPotOdds}%</strong> | Correct: <strong>${correctPotOdds}%</strong>`;
+    h+=` <span style="font-size:11px;color:var(--text3)">(${data.bet} / (${data.pot}+${data.bet}+${data.bet}) = ${correctPotOdds}%)</span>`;
+    if(potOddsCorrect)h+=` <span style="color:var(--green)">\u2713</span>`;
+    h+=`</div></div>`;
+
+    // Decision result
+    h+=`<div class="result-box ${decisionCorrect?'correct-box':'wrong-box'}">`;
+    h+=`<div class="result-title">Decision</div>`;
+    h+=`<div class="result-detail">Your answer: <strong style="text-transform:capitalize">${userDecision}</strong> | Correct: <strong style="text-transform:capitalize">${correctDecision}</strong>`;
+    h+=`<br>Equity: <strong>${equity}%</strong> (Rule of ${street==='flop'?'4':'2'}) ${equity>=correctPotOdds?'≥':'<'} Pot Odds: <strong>${correctPotOdds}%</strong>`;
+    h+=`</div></div>`;
+
+    // Implied odds hint on fold
+    if(correctDecision==='fold' && equity>=correctPotOdds*0.6){
+      h+=`<div style="margin-top:8px;padding:10px 14px;background:var(--blueBg);border:1px solid var(--blue);border-radius:8px;font-size:12px;color:var(--text2)">`;
+      h+=`<strong style="color:var(--blue)">Implied Odds Note:</strong> Pot oddsは足りないが、エクイティが近い場合（${equity}% vs ${correctPotOdds}%）、ヒット後に相手から追加チップを取れる見込み（Implied Odds）があればCallも検討可。`;
+      h+=`</div>`;
+    }
+  }
+  h+=`</div></div>`;
+
+  h+=`<div style="display:flex;gap:8px;margin-top:16px;justify-content:center">`;
+  if(answered){
+    if(street==='flop'){
+      h+=`<button class="btn btn-p" onclick="revealTurn()">Reveal Turn</button>`;
+    } else {
+      h+=`<button class="btn btn-p" onclick="finishHand()">Next Hand</button>`;
+    }
+  }
+  h+=`</div>`;
+  return h;
+}
+
+function submitPotOdds(street){
+  const input=document.getElementById('potOddsInput');
+  const userPotOdds=parseFloat(input?.value)||0;
+  const userDecision=G._potOddsDecision||'fold';
+  const data=street==='flop'?G._potOddsFlop:G._potOddsTurn;
+
+  data._answered=true;
+  data._userPotOdds=+userPotOdds.toFixed(1);
+  data._userDecision=userDecision;
+
+  const correctPotOdds=data.potOddsPct;
+  const equity=data.equity;
+  const correctDecision=equity>=correctPotOdds?'call':'fold';
+
+  // Score: pot odds accuracy (within 1%) + correct decision
+  G.score.totalChecks++;
+  if(Math.abs(userPotOdds-correctPotOdds)<=1)G.score.outsCorrect++;
+  G.score.totalChecks++;
+  if(userDecision===correctDecision)G.score.outsCorrect++;
+
+  G._potOddsDecision=null;
+  playSound(userDecision===correctDecision?'correct':'wrong');
+  rTasks();
+}
+
 function finishHand(){
   // Store result for this hand
   const drawSel=G._drawSelection||{selected:new Set(),correct:new Set()};
@@ -1125,18 +1331,43 @@ function finishHand(){
   // Flop outs scoring
   G.currentHandData.draws.forEach((d,i)=>{totalCount++;if((outsAns.perDraw[i]||0)===d.outs.length)correctCount++;});
   totalCount++;if(outsAns.total===outsAns.correctTotal)correctCount++;
+  // Turn draw selection scoring
+  const turnDrawSel=G._turnDrawSelection||null;
+  if(turnDrawSel){
+    const turnAllTypes=new Set([...turnDrawSel.selected,...turnDrawSel.correct]);
+    turnAllTypes.forEach(t=>{totalCount++;if(turnDrawSel.selected.has(t)&&turnDrawSel.correct.has(t))correctCount++;});
+  }
   // Turn outs scoring
   if(turnOuts&&G._turnDraws){
     G._turnDraws.forEach((d,i)=>{totalCount++;if((turnOuts.perDraw[i]||0)===d.outs.length)correctCount++;});
     totalCount++;if(turnOuts.total===turnOuts.correctTotal)correctCount++;
+  }
+  // Pot odds scoring (flop)
+  const poFlop=G._potOddsFlop;
+  if(poFlop&&poFlop._answered){
+    totalCount++;if(Math.abs(poFlop._userPotOdds-poFlop.potOddsPct)<=1)correctCount++;
+    totalCount++;
+    const correctDecFlop=poFlop.equity>=poFlop.potOddsPct?'call':'fold';
+    if(poFlop._userDecision===correctDecFlop)correctCount++;
+  }
+  // Pot odds scoring (turn)
+  const poTurn=G._potOddsTurn;
+  if(poTurn&&poTurn._answered){
+    totalCount++;if(Math.abs(poTurn._userPotOdds-poTurn.potOddsPct)<=1)correctCount++;
+    totalCount++;
+    const correctDecTurn=poTurn.equity>=poTurn.potOddsPct?'call':'fold';
+    if(poTurn._userDecision===correctDecTurn)correctCount++;
   }
 
   G.results.push({
     hand:G.currentHandData,
     drawSelection:{selected:[...drawSel.selected],correct:[...drawSel.correct]},
     outsAnswers:outsAns,
+    turnDrawSelection:turnDrawSel?{selected:[...turnDrawSel.selected],correct:[...turnDrawSel.correct]}:null,
     turnOutsAnswers:turnOuts,
     turnDraws:G._turnDraws||[],
+    potOddsFlop:poFlop||null,
+    potOddsTurn:poTurn||null,
     correctCount,
     totalCount,
     perfect:correctCount===totalCount
@@ -1146,8 +1377,12 @@ function finishHand(){
   G.currentHand++;
   G._drawSelection=null;
   G._outsAnswers=null;
+  G._turnDrawSelection=null;
   G._turnOutsAnswers=null;
   G._turnDraws=null;
+  G._potOddsFlop=null;
+  G._potOddsTurn=null;
+  G._potOddsDecision=null;
 
   if(G.currentHand>=G.settings.handsPerSet){
     G.phase='set_complete';
