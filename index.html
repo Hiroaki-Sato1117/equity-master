@@ -1263,7 +1263,7 @@ function renderPotOddsQuiz(street){
     h+=`<div class="result-box ${potOddsCorrect?'correct-box':'wrong-box'}">`;
     h+=`<div class="result-title">Pot Odds</div>`;
     h+=`<div class="result-detail">Your answer: <strong>${userPotOdds}%</strong> | Correct: <strong>${correctPotOdds}%</strong>`;
-    h+=` <span style="font-size:11px;color:var(--text3)">(${data.bet} / (${data.pot}+${data.bet}+${data.bet}) = ${correctPotOdds}%)</span>`;
+    h+=` <span style="font-size:11px;color:var(--text3)">(Call ${data.bet} / Total Pot ${data.pot+data.bet+data.bet} = ${correctPotOdds}%)</span>`;
     if(potOddsCorrect)h+=` <span style="color:var(--green)">\u2713</span>`;
     h+=`</div></div>`;
 
