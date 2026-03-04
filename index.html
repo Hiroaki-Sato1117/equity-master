@@ -239,12 +239,12 @@ const SK = {DATA:'pet1',TAB:'pet_tab',THEME:'pet_theme'};
 let D = {
   sets: [],
   dailyLog: {},
-  settings: {handsPerSet:10, drawTypes:DRAW_TYPES.filter(d=>d.id!=='pair_improve').map(d=>d.id)}
+  settings: {handsPerSet:3, drawTypes:DRAW_TYPES.filter(d=>d.id!=='pair_improve').map(d=>d.id)}
 };
 
 function td(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function save(){try{localStorage.setItem(SK.DATA,JSON.stringify(D));}catch(e){}}
-function load(){try{const s=localStorage.getItem(SK.DATA);if(s){const p=JSON.parse(s);Object.assign(D,p);if(!D.settings)D.settings={handsPerSet:10,drawTypes:DRAW_TYPES.filter(d=>d.id!=='pair_improve').map(d=>d.id)};if(!D.dailyLog)D.dailyLog={};}}catch(e){}}
+function load(){try{const s=localStorage.getItem(SK.DATA);if(s){const p=JSON.parse(s);Object.assign(D,p);if(!D.settings)D.settings={handsPerSet:3,drawTypes:DRAW_TYPES.filter(d=>d.id!=='pair_improve').map(d=>d.id)};if(!D.dailyLog)D.dailyLog={};}}catch(e){}}
 
 /* ============================================================
    DECK & CARD UTILITIES
@@ -735,7 +735,7 @@ function renderIdleScreen(el){
   h+=`<div class="card" style="margin-top:24px"><div class="card-h"><span class="card-title">Settings</span></div><div class="card-body">`;
   h+=`<div class="setting-row"><div><div class="setting-label">Hands per Set</div><div class="setting-sub">Number of hands in each set</div></div>`;
   h+=`<div class="setting-ctrl"><select id="setHandsPerSet" onchange="D.settings.handsPerSet=+this.value;save();">`;
-  [5,10,15,20].forEach(n=>{h+=`<option value="${n}"${D.settings.handsPerSet===n?' selected':''}>${n}</option>`;});
+  [3,5,10,15,20].forEach(n=>{h+=`<option value="${n}"${D.settings.handsPerSet===n?' selected':''}>${n}</option>`;});
   h+=`</select></div></div>`;
 
   h+=`<div class="setting-row"><div><div class="setting-label">Draw Types</div><div class="setting-sub">Which draws to include in questions</div></div></div>`;
