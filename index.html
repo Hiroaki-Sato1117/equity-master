@@ -1043,14 +1043,8 @@ function revealTurn(){
   const turnDraws=detectAllDraws(G.currentHandData.hero,[...G.currentHandData.flop,G.currentHandData.turn],G.settings.drawTypes);
   G._turnDraws=turnDraws;
 
-  if(turnDraws.length===0){
-    // No draws on turn — skip straight to result
-    G.phase='show_turn_result';
-    G._turnDrawSelection={selected:new Set(),correct:new Set()};
-    G._turnOutsAnswers={perDraw:[],total:0,correctTotal:0};
-  } else {
-    G.phase='turn_draw_select';
-  }
+  // Always show draw selection on turn (user should identify "no draws" too)
+  G.phase='turn_draw_select';
   playSound('flip');
   rTasks();
 }
@@ -1098,7 +1092,8 @@ function submitTurnDraws(){
     G._turnOutsAnswers={perDraw:[],total:0,correctTotal:0};
     G.phase='show_turn_result';
   }
-  playSound(drawScore===drawTotal&&drawTotal>0?'correct':'wrong');
+  const allCorrectTurn=drawScore===drawTotal&&selected.size===correctDrawTypes.size;
+  playSound(allCorrectTurn?'correct':'wrong');
   rTasks();
 }
 
