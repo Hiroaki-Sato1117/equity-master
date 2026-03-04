@@ -815,7 +815,8 @@ function renderGameScreen(el){
   hand.flop.forEach(c=>{h+=cardHTML(c,'deal-anim');});
 
   // Turn card
-  if(G.phase==='turn_outs'||G.phase==='show_turn_result'||G.phase==='hand_done'){
+  const turnVisible=['turn_draw_select','turn_outs','show_turn_result','pot_odds_turn','hand_done'];
+  if(turnVisible.includes(G.phase)){
     h+=cardHTML(hand.turn,'flip-anim highlight');
   } else {
     h+=cardHTML(null);
@@ -825,7 +826,8 @@ function renderGameScreen(el){
   h+=`</div>`;
 
   // Made hand display
-  const madeHand=evaluateMadeHand(hand.hero,hand.flop);
+  const madeBoard=turnVisible.includes(G.phase)?[...hand.flop,hand.turn]:hand.flop;
+  const madeHand=evaluateMadeHand(hand.hero,madeBoard);
   h+=`<div style="text-align:center;margin:8px 0;font-size:13px;font-weight:600;color:var(--text2)">Made hand: <span style="color:var(--accent);font-weight:700">${madeHand.name}</span></div>`;
 
   // Phase-specific content
