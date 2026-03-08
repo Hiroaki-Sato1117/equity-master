@@ -1526,15 +1526,15 @@ const BOARD_TEXTURES = [
 ];
 
 const CBET_SCENARIOS = [
-  {id:'srp_btn_bb',  label:'BTN open → BB call',       heroPos:'BTN', type:'SRP',  heroIP:true,  potBB:6.5},
-  {id:'srp_co_bb',   label:'CO open → BB call',        heroPos:'CO',  type:'SRP',  heroIP:true,  potBB:6.5},
-  {id:'srp_mp_bb',   label:'MP open → BB call',        heroPos:'MP',  type:'SRP',  heroIP:true,  potBB:6.5},
-  {id:'srp_ep_bb',   label:'EP open → BB call',        heroPos:'EP',  type:'SRP',  heroIP:true,  potBB:6.5},
-  {id:'srp_sb_bb',   label:'SB open → BB call',        heroPos:'SB',  type:'SRP',  heroIP:false, potBB:6},
-  {id:'srp_co_btn',  label:'CO open → BTN call',       heroPos:'CO',  type:'SRP',  heroIP:false, potBB:6.5},
-  {id:'3bet_btn_co', label:'BTN 3bet vs CO open',      heroPos:'BTN', type:'3BET', heroIP:true,  potBB:22},
-  {id:'3bet_bb_btn', label:'BB 3bet vs BTN open',      heroPos:'BB',  type:'3BET', heroIP:false, potBB:22},
-  {id:'mw_ep',       label:'EP open → MP+BB call',     heroPos:'EP',  type:'MW',   heroIP:true,  potBB:10, multiway:true},
+  {id:'srp_btn_bb',  label:'Hero(BTN) open → BB call',       heroPos:'BTN', type:'SRP',  heroIP:true,  potBB:6.5},
+  {id:'srp_co_bb',   label:'Hero(CO) open → BB call',        heroPos:'CO',  type:'SRP',  heroIP:true,  potBB:6.5},
+  {id:'srp_mp_bb',   label:'Hero(MP) open → BB call',        heroPos:'MP',  type:'SRP',  heroIP:true,  potBB:6.5},
+  {id:'srp_ep_bb',   label:'Hero(EP) open → BB call',        heroPos:'EP',  type:'SRP',  heroIP:true,  potBB:6.5},
+  {id:'srp_sb_bb',   label:'Hero(SB) open → BB call',        heroPos:'SB',  type:'SRP',  heroIP:false, potBB:6},
+  {id:'srp_co_btn',  label:'Hero(CO) open → BTN call',       heroPos:'CO',  type:'SRP',  heroIP:false, potBB:6.5},
+  {id:'3bet_btn_co', label:'CO open → Hero(BTN) 3bet → CO call', heroPos:'BTN', type:'3BET', heroIP:true,  potBB:22},
+  {id:'3bet_bb_btn', label:'BTN open → Hero(BB) 3bet → BTN call', heroPos:'BB',  type:'3BET', heroIP:false, potBB:22},
+  {id:'mw_ep',       label:'Hero(EP) open → MP+BB call',     heroPos:'EP',  type:'MW',   heroIP:true,  potBB:10, multiway:true},
 ];
 
 const OPEN_RANGES = {
@@ -2082,6 +2082,242 @@ function submitCbetSizing(){
   rCbet();
 }
 
+function generateCbetExplanation(sc){
+  const {hero,flop,action,textureId,handStrength,correctBet,correctSizing,wetness}=sc;
+  const pot=action.potBB;
+  const boardVals=flop.map(c=>rv(c)).sort((a,b)=>b-a);
+  const boardHigh=boardVals[0];
+  const highRank=boardHigh===14?'A':boardHigh===13?'K':boardHigh===12?'Q':boardHigh===11?'J':boardHigh===10?'T':String(boardHigh);
+  const made=evaluateMadeHand(hero,flop);
+
+  // Suit analysis
+  const suitCounts={};
+  flop.forEach(c=>{suitCounts[c.s]=(suitCounts[c.s]||0)+1;});
+  const maxSuit=Math.max(...Object.values(suitCounts));
+  const twoToneSuit=maxSuit===2?Object.keys(suitCounts).find(s=>suitCounts[s]===2):null;
+  const monoSuit=maxSuit===3?flop[0].s:null;
+
+  // Connectivity
+  const spread=boardVals[0]-boardVals[2];
+
+  // Possible draws on this board
+  const possDraws=[];
+  if(maxSuit>=2)possDraws.push({name:'フラッシュドロー',outs:9,eqFlop:35,eqTurn:19});
+  if(spread<=4)possDraws.push({name:'OESD',outs:8,eqFlop:32,eqTurn:17});
+  if(spread<=5&&spread>2)possDraws.push({name:'ガットショット',outs:4,eqFlop:16,eqTurn:9});
+  if(maxSuit>=2&&spread<=4)possDraws.push({name:'コンボドロー',outs:15,eqFlop:54,eqTurn:33});
+
+  // Range advantage
+  const rangeAdv=boardHigh>=11;
+
+  // Backdoor info
+  const bdInfo=hasBackdoorDraw(hero,flop);
+
+  let h='';
+
+  // === Section 1: Board Texture Analysis ===
+  h+=`<div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)">`;
+  h+=`<div style="font-size:11px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Board Analysis</div>`;
+  h+=`<div style="font-size:12px;color:var(--text2);line-height:1.8">`;
+
+  const suitDesc=maxSuit===3?`モノトーン（${SUIT_NAME[monoSuit]}×3）`:maxSuit===2?`ツートーン（${SUIT_NAME[twoToneSuit]}×2）`:'レインボー（3色）';
+  h+=`<strong>スート:</strong> ${suitDesc}<br>`;
+
+  const connDesc=spread<=2?'非常にコネクト（接続性高）':spread<=4?'コネクト気味':spread<=7?'やや離れている':'スプレッド（大きく離れている）';
+  h+=`<strong>コネクティビティ:</strong> ${connDesc}（スプレッド: ${spread}）<br>`;
+
+  const rankCounts={};
+  flop.forEach(c=>{rankCounts[c.r]=(rankCounts[c.r]||0)+1;});
+  const isPaired=Object.values(rankCounts).some(v=>v>=2);
+  if(isPaired){
+    const pr=Object.keys(rankCounts).find(k=>rankCounts[k]>=2);
+    h+=`<strong>ペア:</strong> ${pr}のペアあり<br>`;
+  }
+
+  if(possDraws.length>0){
+    h+=`<strong>ボード上の可能なドロー:</strong><br>`;
+    possDraws.forEach(d=>{
+      h+=`&nbsp;&nbsp;- ${d.name}（${d.outs}アウツ, フロップ→リバー ~${d.eqFlop}%）<br>`;
+    });
+  }else{
+    h+=`<strong>可能なドロー:</strong> ほぼなし（非常にドライ）<br>`;
+  }
+
+  const tex=BOARD_TEXTURES.find(b=>b.id===textureId);
+  h+=`→ テクスチャ: <strong style="color:var(--accent)">${tex.label}</strong>（ウェットネス: ${wetness}/10）`;
+  h+=`</div></div>`;
+
+  // === Section 2: Hand Strength ===
+  h+=`<div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)">`;
+  h+=`<div style="font-size:11px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Hand Strength</div>`;
+  h+=`<div style="font-size:12px;color:var(--text2);line-height:1.8">`;
+  h+=`<strong>メイドハンド:</strong> ${made.name}<br>`;
+
+  const strDesc={
+    monster:'セット/ツーペア以上。レンジのトップ。積極的にバリューを取るべきハンド。',
+    strong:'トップペア（グッドキッカー）or オーバーペア。C-betの主力バリューハンド。',
+    medium:'セカンドペア or ウィークトップペア。ポットコントロールが重要になるハンド。',
+    draw:'フラッシュドロー or OESD。セミブラフの候補。fold equity + ヒット時のバリューがある。',
+    weak:'ボトムペア、ガットショット、弱いドロー。マージナルなハンド。',
+    air:'ノーペア、有効なドローなし。ブラフの候補だが、ボードテクスチャに依存。'
+  };
+  h+=`<strong>分類:</strong> <span style="text-transform:capitalize;color:var(--accent)">${handStrength}</span> — ${strDesc[handStrength]||''}<br>`;
+
+  if(bdInfo&&handStrength==='air')h+=`<strong>バックドアドロー:</strong> あり（ターンでの改善可能性）<br>`;
+
+  const eqEst={monster:'80-95%',strong:'60-75%',medium:'45-60%',draw:'30-50%',weak:'25-40%',air:'10-25%'};
+  h+=`<strong>推定エクイティ vs コールレンジ:</strong> ~${eqEst[handStrength]||'??'}`;
+  h+=`</div></div>`;
+
+  // === Section 3: C-bet Decision Reasoning ===
+  h+=`<div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)">`;
+  h+=`<div style="font-size:11px;font-weight:700;color:${correctBet?'var(--green)':'var(--blue)'};text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">${correctBet?'C-BET':'CHECK'} の理由</div>`;
+  h+=`<div style="font-size:12px;color:var(--text2);line-height:1.8">`;
+
+  // Pot type
+  if(action.type==='3BET'){
+    h+=`<strong>3BETポット:</strong> SPR（スタック/ポット比）が低く、プリフロップレイザーのレンジアドバンテージが非常に大きい。`;
+    if(rangeAdv)h+=`${highRank}ハイボードでは特に有利 — 3betterのレンジにA/K/Qが集中。`;
+    else h+=`ただしロウボードではアドバンテージがやや縮小。`;
+    h+=`<br>`;
+  }else if(action.multiway){
+    h+=`<strong>マルチウェイポット:</strong> 相手が2人以上いるため、少なくとも1人がヒットしている確率が高い。ブラフの成功率が大幅に低下する。強いバリューとセミブラフのみでベットすべき。<br>`;
+  }else{
+    h+=`<strong>SRP（シングルレイズポット）:</strong> 標準的なC-betシチュエーション。`;
+    if(rangeAdv)h+=`${highRank}ハイボードでレンジアドバンテージあり。`;
+    else h+=`ロウボードではBBのレンジがヒットしやすく、C-bet頻度を下げるべき。`;
+    h+=`<br>`;
+  }
+
+  // Position
+  h+=`<strong>ポジション:</strong> ${action.heroIP?'IP（インポジション）— 後からアクションできるため、幅広いレンジでベット/チェックの選択肢がある。':'OOP（アウトオブポジション）— 先にアクションするため、チェックレンジを強く保つ必要がある。ミディアムハンドのチェック頻度が上がる。'}<br>`;
+
+  // Core reasoning
+  h+=`<br><strong>判断:</strong> ${sc.explanation}<br>`;
+
+  // Texture-specific strategy note
+  if(textureId==='dry'){
+    h+=`<br><em style="color:var(--text3)">Dryボードの原則: ドローが少ない → 小さいサイズで高頻度。相手はヒットしていなければほぼフォールドするため、小さいベットで十分なfold equityを得られる。</em>`;
+  }else if(textureId==='wet'){
+    h+=`<br><em style="color:var(--text3)">Wetボードの原則: ドローが多い → 大きいサイズで低頻度。ドローに不正確なオッズを与え、弱いメイドハンドにはチェックでポットをコントロール。</em>`;
+  }else if(textureId==='semi_wet'){
+    h+=`<br><em style="color:var(--text3)">Semi-wetの原則: 中間的なテクスチャ → 中サイズ。ハンド強度に応じて選択的にベット。IPではやや広く、OOPではやや狭く。</em>`;
+  }else if(textureId==='monotone'){
+    h+=`<br><em style="color:var(--text3)">Monotoneの原則: フラッシュ完成の可能性あり → 慎重に。フラッシュブロッカー（そのスートのカード1枚）を持っている場合のみベットを検討。</em>`;
+  }else if(textureId==='paired'){
+    h+=`<br><em style="color:var(--text3)">Pairedボードの原則: 相手がボードとインタラクトしにくい → 小さいサイズで広くC-bet。レイザーのレンジアドバンテージが大きい。</em>`;
+  }
+
+  h+=`</div></div>`;
+
+  // === Section 4: Sizing Math ===
+  if(correctBet&&correctSizing){
+    const mult=SIZING_MULT[correctSizing];
+    const betSize=Math.round(pot*mult*10)/10;
+    const totalPot=pot+betSize*2;
+    const reqEq=Math.round(betSize/totalPot*1000)/10;
+
+    h+=`<div style="margin-bottom:0">`;
+    h+=`<div style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Sizing Math</div>`;
+    h+=`<div style="font-size:12px;color:var(--text2);line-height:1.8">`;
+
+    h+=`<strong>推奨サイズ:</strong> ${correctSizing} pot = <span style="font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--accent)">${betSize}bb</span>（ポット ${pot}bb）<br>`;
+    h+=`<strong>相手のコール必要エクイティ:</strong> ${betSize}bb / (${pot} + ${betSize}x2)bb = <span style="font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--red)">${reqEq}%</span><br>`;
+
+    // Draw comparison table
+    if(possDraws.length>0){
+      h+=`<br><strong>ドロー vs ポットオッズ:</strong>`;
+      h+=`<div style="margin:6px 0 10px;border:1px solid var(--border);border-radius:8px;overflow:hidden">`;
+      h+=`<table style="width:100%;border-collapse:collapse;font-size:11px">`;
+      h+=`<thead><tr style="background:var(--bg3)">`;
+      h+=`<th style="padding:6px 8px;text-align:left;color:var(--text3);font-weight:700">ドロー</th>`;
+      h+=`<th style="padding:6px 8px;text-align:center;color:var(--text3);font-weight:700">Outs</th>`;
+      h+=`<th style="padding:6px 8px;text-align:center;color:var(--text3);font-weight:700">Equity</th>`;
+      h+=`<th style="padding:6px 8px;text-align:center;color:var(--text3);font-weight:700">必要Eq</th>`;
+      h+=`<th style="padding:6px 8px;text-align:left;color:var(--text3);font-weight:700">判定</th>`;
+      h+=`</tr></thead><tbody>`;
+      possDraws.forEach((d,i)=>{
+        const canCall=d.eqFlop>reqEq;
+        const bg=i%2===0?'var(--bg2)':'transparent';
+        h+=`<tr style="border-top:1px solid var(--border);background:${bg}">`;
+        h+=`<td style="padding:6px 8px;font-weight:600">${d.name}</td>`;
+        h+=`<td style="padding:6px 8px;text-align:center;font-family:'JetBrains Mono',monospace">${d.outs}</td>`;
+        h+=`<td style="padding:6px 8px;text-align:center;font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--text)">${d.eqFlop}%</td>`;
+        h+=`<td style="padding:6px 8px;text-align:center;font-family:'JetBrains Mono',monospace;color:var(--red)">${reqEq}%</td>`;
+        h+=`<td style="padding:6px 8px;color:${canCall?'var(--gold)':'var(--green)'}">`;
+        h+=canCall?'コール可能':'フォールド';
+        h+=`</td></tr>`;
+      });
+      h+=`</tbody></table></div>`;
+
+      // Key insight for strong hands + draws calling
+      const fdDraw=possDraws.find(d=>d.name==='フラッシュドロー');
+      if(fdDraw&&fdDraw.eqFlop>reqEq&&(handStrength==='strong'||handStrength==='monster')){
+        const heroEq=100-fdDraw.eqFlop;
+        h+=`<div style="padding:10px 12px;background:var(--blueBg);border:1px solid var(--blue);border-radius:8px;margin-bottom:10px">`;
+        h+=`<strong style="color:var(--blue)">Key Insight:</strong> フラッシュドロー(${fdDraw.eqFlop}%)がコール可能だが、問題ない。`;
+        h+=`あなたの${made.name}は~${heroEq}%の勝率があり、<strong>相手がコールするたびに期待値はプラス</strong>。`;
+        h+=`「降ろす」ことより「コールさせてバリューを取る」方が利益的。`;
+        h+=`ターン以降でフラッシュが完成しなければ再度ベットでき、完成した場合はチェック/フォールドで損失を最小化できる。`;
+        h+=`</div>`;
+      }
+
+      // If we're checking and draws exist, explain why
+      if(!correctBet&&possDraws.length>0&&(handStrength==='medium'||handStrength==='weak'||handStrength==='air')){
+        h+=`<div style="padding:10px 12px;background:var(--goldBg);border:1px solid var(--gold);border-radius:8px;margin-bottom:10px">`;
+        h+=`<strong style="color:var(--gold)">Check理由:</strong> `;
+        if(handStrength==='medium')h+=`セカンドペア等のミディアムハンドでは、ベットしてレイズされると困る。チェックでポットをコントロールし、ターン以降の情報を得る。`;
+        else if(handStrength==='weak')h+=`弱いハンドでベットしても、相手が降りるハンドにはすでに負けておらず、コールしてくるハンドには負けている可能性が高い。`;
+        else h+=`エアハンドでこのボードをブラフするのはリスクが高い。相手のコールレンジが広すぎる。`;
+        h+=`</div>`;
+      }
+    }
+
+    // Size comparison chart
+    h+=`<strong>サイズ別比較:</strong>`;
+    h+=`<div style="margin:6px 0;border:1px solid var(--border);border-radius:8px;overflow:hidden">`;
+    h+=`<table style="width:100%;border-collapse:collapse;font-size:11px">`;
+    h+=`<thead><tr style="background:var(--bg3)">`;
+    h+=`<th style="padding:5px 8px;text-align:left;color:var(--text3);font-weight:700">サイズ</th>`;
+    h+=`<th style="padding:5px 8px;text-align:center;color:var(--text3);font-weight:700">ベット額</th>`;
+    h+=`<th style="padding:5px 8px;text-align:center;color:var(--text3);font-weight:700">必要Eq</th>`;
+    h+=`<th style="padding:5px 8px;text-align:left;color:var(--text3);font-weight:700">FD</th>`;
+    h+=`</tr></thead><tbody>`;
+    SIZING_OPTIONS.forEach((sz,i)=>{
+      const m=SIZING_MULT[sz];
+      const b=Math.round(pot*m*10)/10;
+      const t=pot+b*2;
+      const r=Math.round(b/t*1000)/10;
+      const isCur=sz===correctSizing;
+      const fdCall=35>r;
+      const bg=isCur?'var(--accentBg)':i%2===0?'var(--bg2)':'transparent';
+      h+=`<tr style="border-top:1px solid var(--border);background:${bg};${isCur?'font-weight:700':''}">`;
+      h+=`<td style="padding:5px 8px;${isCur?'color:var(--accent)':''}">${isCur?'> ':''}<strong>${sz}</strong> pot</td>`;
+      h+=`<td style="padding:5px 8px;text-align:center;font-family:'JetBrains Mono',monospace">${b}bb</td>`;
+      h+=`<td style="padding:5px 8px;text-align:center;font-family:'JetBrains Mono',monospace">${r}%</td>`;
+      h+=`<td style="padding:5px 8px;color:${fdCall?'var(--gold)':'var(--green)'}"><span style="font-size:10px">${fdCall?'call':'fold'}</span></td>`;
+      h+=`</tr>`;
+    });
+    h+=`</tbody></table></div>`;
+
+    h+=`</div></div>`;
+  }else if(!correctBet){
+    // Explain why check, no sizing math needed
+    h+=`<div>`;
+    h+=`<div style="font-size:11px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Check戦略</div>`;
+    h+=`<div style="font-size:12px;color:var(--text2);line-height:1.8">`;
+    h+=`チェックを選択することで：<br>`;
+    h+=`&nbsp;1. ポットサイズをコントロールし、損失を最小化<br>`;
+    h+=`&nbsp;2. 相手のブラフを誘発（チェックレイズのオプション）<br>`;
+    h+=`&nbsp;3. ターン以降の情報を得てから判断<br>`;
+    if(action.heroIP)h+=`<br>IPでのチェックは弱さを見せるが、このハンド/ボードではポットコントロールが優先。`;
+    else h+=`<br>OOPでは強いチェックレンジを持つことが重要。このハンドはそのチェックレンジに含めるべき。`;
+    h+=`</div></div>`;
+  }
+
+  return h;
+}
+
 function renderCbetResult(el){
   const sc=CB.currentScenario;
   const texCorrect=CB._userTexture===sc.textureId;
@@ -2148,18 +2384,10 @@ function renderCbetResult(el){
     h+=`</div>`;
   }
 
-  // Explanation
-  h+=`<div style="margin-top:12px;padding:14px;background:var(--bg2);border-radius:10px;border-left:3px solid var(--accent)">`;
-  h+=`<div style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;margin-bottom:6px">Strategy Explanation</div>`;
-  h+=`<div style="font-size:13px;color:var(--text2);line-height:1.6">${sc.explanation}</div>`;
-  h+=`</div>`;
-
-  // Board analysis
-  h+=`<div class="ba-grid">`;
-  h+=`<div class="ba-item"><div class="ba-l">Texture</div><div class="ba-v">${correctTex.label}</div></div>`;
-  h+=`<div class="ba-item"><div class="ba-l">Wetness</div><div class="ba-v">${sc.wetness}/10</div></div>`;
-  h+=`<div class="ba-item"><div class="ba-l">Hand Strength</div><div class="ba-v" style="text-transform:capitalize">${sc.handStrength}</div></div>`;
-  h+=`<div class="ba-item"><div class="ba-l">Position</div><div class="ba-v">${sc.action.heroIP?'In Position':'Out of Position'}</div></div>`;
+  // Detailed explanation
+  h+=`<div style="margin-top:16px;padding:16px;background:var(--bg2);border-radius:12px;border:1px solid var(--border)">`;
+  h+=`<div style="font-size:13px;font-weight:800;color:var(--text);margin-bottom:12px;letter-spacing:-.3px">Strategy Breakdown</div>`;
+  h+=generateCbetExplanation(sc);
   h+=`</div>`;
 
   // Store result
