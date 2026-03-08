@@ -1745,10 +1745,23 @@ function determineCbetAnswer(hero, flop, textureId, strength, action){
       }
       return{bet:false,sizing:null,explanation:'3BETポット + Monotone: 弱いハンドはチェック。モノトーンボードでは広くチェックが基本'};
     }
-    // Semi-wet / Wet in 3BET pot
-    if(strength==='monster'||strength==='strong')return{bet:true,sizing:'1/2',explanation:'3BETポット + Semi-wet/Wet: 強いハンドでバリューベット。ドローにコストを払わせる'};
-    if(strength==='draw')return{bet:true,sizing:'1/2',explanation:'3BETポット + Semi-wet/Wet: ドローでセミブラフ。fold equity + ヒット時のバリュー'};
-    return{bet:false,sizing:null,explanation:'3BETポット + Wet系ボード: 弱いハンドは選択的にチェック'};
+    // Semi-wet in 3BET pot — still high frequency, smaller sizing
+    if(textureId==='semi_wet'){
+      if(strength==='monster'||strength==='strong')return{bet:true,sizing:'1/3',explanation:'3BETポット + Semi-wet: SPRが低くレンジアドバンテージ大。1/3 potの小さいサイズでバリューベット'};
+      if(strength==='medium'){
+        if(action.heroIP)return{bet:true,sizing:'1/3',explanation:'3BETポット + Semi-wet + IP: SPRが低いためミディアムハンドでも小さくベット。ポジションの優位性を活かす'};
+        return{bet:false,sizing:null,explanation:'3BETポット + Semi-wet + OOP: ミディアムハンドはチェック。OOPではチェックレンジに強さを残す'};
+      }
+      if(strength==='draw')return{bet:true,sizing:'1/3',explanation:'3BETポット + Semi-wet: ドローで小さくセミブラフ。fold equity + ヒット時のバリュー'};
+      // Air/Weak with backdoor + IP → bet 1/3 (range advantage in 3bet pot is huge)
+      if(hasBackdoorDraw(hero,flop)&&action.heroIP)return{bet:true,sizing:'1/3',explanation:'3BETポット + Semi-wet + IP + バックドアドロー: レンジアドバンテージが大きく、バックドアドローもある。小さくブラフベット'};
+      if(rangeAdv&&action.heroIP&&strength==='air')return{bet:true,sizing:'1/3',explanation:'3BETポット + ハイボード + IP: レンジアドバンテージが非常に大きい。エアでも小さくC-bet'};
+      return{bet:false,sizing:null,explanation:'3BETポット + Semi-wet: バックドアドローもない弱いハンドはチェック'};
+    }
+    // Wet in 3BET pot — more selective
+    if(strength==='monster'||strength==='strong')return{bet:true,sizing:'1/2',explanation:'3BETポット + Wet: 強いハンドで1/2 potベット。ドローに不正確なオッズを与える'};
+    if(strength==='draw')return{bet:true,sizing:'1/3',explanation:'3BETポット + Wet: ドローで小さくセミブラフ。SPRが低いので1/3で十分なプレッシャー'};
+    return{bet:false,sizing:null,explanation:'3BETポット + Wet: ドローが多いボードで弱いハンドはチェック'};
   }
 
   // SRP
