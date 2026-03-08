@@ -2112,233 +2112,243 @@ function generateCbetExplanation(sc){
   const {hero,flop,action,textureId,handStrength,correctBet,correctSizing,wetness}=sc;
   const pot=action.potBB;
   const boardVals=flop.map(c=>rv(c)).sort((a,b)=>b-a);
-  const boardHigh=boardVals[0];
-  const highRank=boardHigh===14?'A':boardHigh===13?'K':boardHigh===12?'Q':boardHigh===11?'J':boardHigh===10?'T':String(boardHigh);
+  const heroVals=hero.map(c=>rv(c)).sort((a,b)=>b-a);
   const made=evaluateMadeHand(hero,flop);
+  const SUIT_SYM={s:'♠',h:'♥',d:'♦',c:'♣'};
+  const rvN=v=>v===14?'A':v===13?'K':v===12?'Q':v===11?'J':v===10?'T':String(v);
 
-  // Suit analysis
+  // Board analysis
   const suitCounts={};
   flop.forEach(c=>{suitCounts[c.s]=(suitCounts[c.s]||0)+1;});
   const maxSuit=Math.max(...Object.values(suitCounts));
+  const monoSuit=maxSuit===3?Object.keys(suitCounts).find(s=>suitCounts[s]===3):null;
   const twoToneSuit=maxSuit===2?Object.keys(suitCounts).find(s=>suitCounts[s]===2):null;
-  const monoSuit=maxSuit===3?flop[0].s:null;
-
-  // Connectivity
   const spread=boardVals[0]-boardVals[2];
-
-  // Possible draws on this board
-  const possDraws=[];
-  if(maxSuit>=2)possDraws.push({name:'フラッシュドロー',outs:9,eqFlop:35,eqTurn:19});
-  if(spread<=4)possDraws.push({name:'OESD',outs:8,eqFlop:32,eqTurn:17});
-  if(spread<=5&&spread>2)possDraws.push({name:'ガットショット',outs:4,eqFlop:16,eqTurn:9});
-  if(maxSuit>=2&&spread<=4)possDraws.push({name:'コンボドロー',outs:15,eqFlop:54,eqTurn:33});
-
-  // Range advantage
-  const rangeAdv=boardHigh>=11;
-
-  // Backdoor info
+  const rangeAdv=boardVals[0]>=11;
+  const boardHighName=rvN(boardVals[0]);
   const bdInfo=hasBackdoorDraw(hero,flop);
+
+  // Hero specifics
+  const overcards=heroVals.filter(v=>v>boardVals[0]);
+  const hasFlushBlocker=monoSuit?hero.some(c=>c.s===monoSuit):false;
+  const isPocketPair=hero[0].r===hero[1].r;
+
+  // Hero's flush draw check
+  let heroHasFD=false, heroFDSuit=null;
+  for(const s of new Set(hero.map(c=>c.s))){
+    if((hero.filter(c=>c.s===s).length+flop.filter(c=>c.s===s).length)>=4){
+      heroHasFD=true; heroFDSuit=s; break;
+    }
+  }
+  // Hero's backdoor flush
+  let heroBDFlush=false, heroBDSuit=null;
+  if(!heroHasFD){
+    for(const s of new Set(hero.map(c=>c.s))){
+      if(hero.filter(c=>c.s===s).length>=2&&flop.filter(c=>c.s===s).length>=1){
+        heroBDFlush=true; heroBDSuit=s; break;
+      }
+    }
+  }
+
+  // Possible draws on board (for others)
+  const boardDraws=[];
+  if(maxSuit>=2)boardDraws.push('フラッシュドロー');
+  if(spread<=4)boardDraws.push('OESD');
+  else if(spread<=6)boardDraws.push('ガットショット');
+
+  // Hero's improvement outs & turn equity
+  let outs=[];
+  if(handStrength==='air'||handStrength==='weak'){
+    overcards.forEach(v=>{outs.push({name:rvN(v)+'ヒット',count:3});});
+    if(handStrength==='weak'){
+      outs.push({name:'セット改善',count:2});
+    }
+    if(heroHasFD)outs.push({name:SUIT_SYM[heroFDSuit]+'フラッシュ完成',count:9});
+    else if(heroBDFlush)outs.push({name:'BD'+SUIT_SYM[heroBDSuit]+'フラッシュ',count:2});
+    // Backdoor straight (if hasBackdoorDraw returned true but no flush outs added)
+    if(bdInfo&&!heroHasFD&&!heroBDFlush)outs.push({name:'BDストレート',count:2});
+    else if(bdInfo&&heroBDFlush)outs.push({name:'BDストレート',count:1});
+  }else if(handStrength==='draw'){
+    if(heroHasFD)outs.push({name:SUIT_SYM[heroFDSuit]+'フラッシュ完成',count:9});
+    const allV=[...new Set([...heroVals,...boardVals])].sort((a,b)=>a-b);
+    let hasOE=false;
+    for(let i=0;i<allV.length-3;i++){if(allV[i+3]-allV[i]<=4){
+      const window=allV.filter(v=>v>=allV[i]&&v<=allV[i]+4);
+      if(window.length>=4){hasOE=true;break;}
+    }}
+    if(hasOE)outs.push({name:'ストレート完成',count:heroHasFD?6:8});
+    if(!heroHasFD&&!hasOE)outs.push({name:'ガットショット',count:4});
+    if(overcards.length>0)outs.push({name:'オーバーカード'+rvN(overcards[0]),count:3});
+  }else if(handStrength==='medium'){
+    outs.push({name:'セット/ツーペア改善',count:5});
+  }else if(handStrength==='strong'){
+    outs.push({name:'さらなる改善',count:5});
+  }
+  const totalOuts=outs.reduce((s,o)=>s+o.count,0);
+  const turnPct=totalOuts>0?Math.round(totalOuts/47*100):0;
+  const riverPct=totalOuts>0?Math.round((1-((47-totalOuts)/47*(46-totalOuts)/46))*100):0;
+
+  // Hero hand description
+  const heroFeatures=[];
+  if(overcards.length>0)heroFeatures.push(overcards.map(v=>rvN(v)).join('・')+'のオーバーカード');
+  if(isPocketPair){
+    const pv=rv(hero[0]);
+    if(pv>boardVals[0])heroFeatures.push('オーバーペア');
+    else if(pv<boardVals[2])heroFeatures.push('アンダーペア');
+  }
+  if(heroHasFD)heroFeatures.push(SUIT_SYM[heroFDSuit]+'フラッシュドロー');
+  else if(heroBDFlush)heroFeatures.push('バックドア'+SUIT_SYM[heroBDSuit]+'フラッシュドロー');
+  if(hasFlushBlocker&&monoSuit)heroFeatures.push(SUIT_SYM[monoSuit]+'フラッシュブロッカー');
 
   let h='';
 
-  // === Section 1: Board Texture Analysis ===
-  h+=`<div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)">`;
-  h+=`<div style="font-size:11px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Board Analysis</div>`;
-  h+=`<div style="font-size:12px;color:var(--text2);line-height:1.8">`;
-
-  const suitDesc=maxSuit===3?`モノトーン（${SUIT_NAME[monoSuit]}×3）`:maxSuit===2?`ツートーン（${SUIT_NAME[twoToneSuit]}×2）`:'レインボー（3色）';
-  h+=`<strong>スート:</strong> ${suitDesc}<br>`;
-
-  const connDesc=spread<=2?'非常にコネクト（接続性高）':spread<=4?'コネクト気味':spread<=7?'やや離れている':'スプレッド（大きく離れている）';
-  h+=`<strong>コネクティビティ:</strong> ${connDesc}（スプレッド: ${spread}）<br>`;
-
-  const rankCounts={};
-  flop.forEach(c=>{rankCounts[c.r]=(rankCounts[c.r]||0)+1;});
-  const isPaired=Object.values(rankCounts).some(v=>v>=2);
-  if(isPaired){
-    const pr=Object.keys(rankCounts).find(k=>rankCounts[k]>=2);
-    h+=`<strong>ペア:</strong> ${pr}のペアあり<br>`;
-  }
-
-  if(possDraws.length>0){
-    h+=`<strong>ボード上の可能なドロー:</strong><br>`;
-    possDraws.forEach(d=>{
-      h+=`&nbsp;&nbsp;- ${d.name}（${d.outs}アウツ, フロップ→リバー ~${d.eqFlop}%）<br>`;
-    });
+  // ===== 1. あなたのハンド =====
+  h+=`<div style="margin-bottom:16px">`;
+  h+=`<div style="font-size:12px;font-weight:700;color:var(--accent);margin-bottom:6px">あなたのハンド</div>`;
+  h+=`<div style="font-size:13px;color:var(--text);line-height:1.7">`;
+  h+=`<strong>${made.name}</strong>`;
+  if(heroFeatures.length>0)h+=`（${heroFeatures.join('、')}）`;
+  h+=`<br>`;
+  if(totalOuts>0&&handStrength!=='monster'){
+    h+=`<span style="color:var(--text3);font-size:12px">ターン改善: ${outs.map(o=>o.name+'('+o.count+')').join(' + ')} = <strong style="color:var(--text)">${totalOuts}アウツ → ターン${turnPct}% / リバーまで${riverPct}%</strong></span>`;
+  }else if(handStrength==='monster'){
+    h+=`<span style="color:var(--text3);font-size:12px">すでにレンジトップのハンド。バリューを最大化したい。</span>`;
   }else{
-    h+=`<strong>可能なドロー:</strong> ほぼなし（非常にドライ）<br>`;
+    h+=`<span style="color:var(--text3);font-size:12px">改善の見込みがほぼない。</span>`;
   }
-
-  const tex=BOARD_TEXTURES.find(b=>b.id===textureId);
-  h+=`→ テクスチャ: <strong style="color:var(--accent)">${tex.label}</strong>（ウェットネス: ${wetness}/10）`;
   h+=`</div></div>`;
 
-  // === Section 2: Hand Strength ===
-  h+=`<div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)">`;
-  h+=`<div style="font-size:11px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Hand Strength</div>`;
-  h+=`<div style="font-size:12px;color:var(--text2);line-height:1.8">`;
-  h+=`<strong>メイドハンド:</strong> ${made.name}<br>`;
+  // ===== 2. なぜこの判断か =====
+  h+=`<div style="margin-bottom:16px">`;
+  h+=`<div style="font-size:12px;font-weight:700;color:${correctBet?'var(--green)':'var(--red)'};margin-bottom:6px">${correctBet?'BET '+correctSizing+' pot の理由':'CHECK の理由'}</div>`;
+  h+=`<div style="font-size:13px;color:var(--text2);line-height:1.8">`;
 
-  const strDesc={
-    monster:'セット/ツーペア以上。レンジのトップ。積極的にバリューを取るべきハンド。',
-    strong:'トップペア（グッドキッカー）or オーバーペア。C-betの主力バリューハンド。',
-    medium:'セカンドペア or ウィークトップペア。ポットコントロールが重要になるハンド。',
-    draw:'フラッシュドロー or OESD。セミブラフの候補。fold equity + ヒット時のバリューがある。',
-    weak:'ボトムペア、ガットショット、弱いドロー。マージナルなハンド。',
-    air:'ノーペア、有効なドローなし。ブラフの候補だが、ボードテクスチャに依存。'
-  };
-  h+=`<strong>分類:</strong> <span style="text-transform:capitalize;color:var(--accent)">${handStrength}</span> — ${strDesc[handStrength]||''}<br>`;
+  const reasons=[];
 
-  if(bdInfo&&handStrength==='air')h+=`<strong>バックドアドロー:</strong> あり（ターンでの改善可能性）<br>`;
-
-  const eqEst={monster:'80-95%',strong:'60-75%',medium:'45-60%',draw:'30-50%',weak:'25-40%',air:'10-25%'};
-  h+=`<strong>推定エクイティ vs コールレンジ:</strong> ~${eqEst[handStrength]||'??'}`;
-  h+=`</div></div>`;
-
-  // === Section 3: C-bet Decision Reasoning ===
-  h+=`<div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)">`;
-  h+=`<div style="font-size:11px;font-weight:700;color:${correctBet?'var(--green)':'var(--blue)'};text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">${correctBet?'C-BET':'CHECK'} の理由</div>`;
-  h+=`<div style="font-size:12px;color:var(--text2);line-height:1.8">`;
-
-  // Pot type
-  if(action.type==='3BET'){
-    h+=`<strong>3BETポット:</strong> SPR（スタック/ポット比）が低く、プリフロップレイザーのレンジアドバンテージが非常に大きい。`;
-    if(rangeAdv)h+=`${highRank}ハイボードでは特に有利 — 3betterのレンジにA/K/Qが集中。`;
-    else h+=`ただしロウボードではアドバンテージがやや縮小。`;
-    h+=`<br>`;
-  }else if(action.multiway){
-    h+=`<strong>マルチウェイポット:</strong> 相手が2人以上いるため、少なくとも1人がヒットしている確率が高い。ブラフの成功率が大幅に低下する。強いバリューとセミブラフのみでベットすべき。<br>`;
-  }else{
-    h+=`<strong>SRP（シングルレイズポット）:</strong> 標準的なC-betシチュエーション。`;
-    if(rangeAdv)h+=`${highRank}ハイボードでレンジアドバンテージあり。`;
-    else h+=`ロウボードではBBのレンジがヒットしやすく、C-bet頻度を下げるべき。`;
-    h+=`<br>`;
-  }
-
-  // Position
-  h+=`<strong>ポジション:</strong> ${action.heroIP?'IP（インポジション）— 後からアクションできるため、幅広いレンジでベット/チェックの選択肢がある。':'OOP（アウトオブポジション）— 先にアクションするため、チェックレンジを強く保つ必要がある。ミディアムハンドのチェック頻度が上がる。'}<br>`;
-
-  // Core reasoning
-  h+=`<br><strong>判断:</strong> ${sc.explanation}<br>`;
-
-  // Texture-specific strategy note
-  if(textureId==='dry'){
-    h+=`<br><em style="color:var(--text3)">Dryボードの原則: ドローが少ない → 小さいサイズで高頻度。相手はヒットしていなければほぼフォールドするため、小さいベットで十分なfold equityを得られる。</em>`;
-  }else if(textureId==='wet'){
-    h+=`<br><em style="color:var(--text3)">Wetボードの原則: ドローが多い → 大きいサイズで低頻度。ドローに不正確なオッズを与え、弱いメイドハンドにはチェックでポットをコントロール。</em>`;
-  }else if(textureId==='semi_wet'){
-    h+=`<br><em style="color:var(--text3)">Semi-wetの原則: 中間的なテクスチャ → 中サイズ。ハンド強度に応じて選択的にベット。IPではやや広く、OOPではやや狭く。</em>`;
-  }else if(textureId==='monotone'){
-    h+=`<br><em style="color:var(--text3)">Monotoneの原則: フラッシュ完成の可能性あり → 慎重に。フラッシュブロッカー（そのスートのカード1枚）を持っている場合のみベットを検討。</em>`;
-  }else if(textureId==='paired'){
-    h+=`<br><em style="color:var(--text3)">Pairedボードの原則: 相手がボードとインタラクトしにくい → 小さいサイズで広くC-bet。レイザーのレンジアドバンテージが大きい。</em>`;
-  }
-
-  h+=`</div></div>`;
-
-  // === Section 4: Sizing Math ===
-  if(correctBet&&correctSizing){
-    const mult=SIZING_MULT[correctSizing];
-    const betSize=Math.round(pot*mult*10)/10;
-    const totalPot=pot+betSize*2;
-    const reqEq=Math.round(betSize/totalPot*1000)/10;
-
-    h+=`<div style="margin-bottom:0">`;
-    h+=`<div style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Sizing Math</div>`;
-    h+=`<div style="font-size:12px;color:var(--text2);line-height:1.8">`;
-
-    h+=`<strong>推奨サイズ:</strong> ${correctSizing} pot = <span style="font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--accent)">${betSize}bb</span>（ポット ${pot}bb）<br>`;
-    h+=`<strong>相手のコール必要エクイティ:</strong> ${betSize}bb / (${pot} + ${betSize}x2)bb = <span style="font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--red)">${reqEq}%</span><br>`;
-
-    // Draw comparison table
-    if(possDraws.length>0){
-      h+=`<br><strong>ドロー vs ポットオッズ:</strong>`;
-      h+=`<div style="margin:6px 0 10px;border:1px solid var(--border);border-radius:8px;overflow:hidden">`;
-      h+=`<table style="width:100%;border-collapse:collapse;font-size:11px">`;
-      h+=`<thead><tr style="background:var(--bg3)">`;
-      h+=`<th style="padding:6px 8px;text-align:left;color:var(--text3);font-weight:700">ドロー</th>`;
-      h+=`<th style="padding:6px 8px;text-align:center;color:var(--text3);font-weight:700">Outs</th>`;
-      h+=`<th style="padding:6px 8px;text-align:center;color:var(--text3);font-weight:700">Equity</th>`;
-      h+=`<th style="padding:6px 8px;text-align:center;color:var(--text3);font-weight:700">必要Eq</th>`;
-      h+=`<th style="padding:6px 8px;text-align:left;color:var(--text3);font-weight:700">判定</th>`;
-      h+=`</tr></thead><tbody>`;
-      possDraws.forEach((d,i)=>{
-        const canCall=d.eqFlop>reqEq;
-        const bg=i%2===0?'var(--bg2)':'transparent';
-        h+=`<tr style="border-top:1px solid var(--border);background:${bg}">`;
-        h+=`<td style="padding:6px 8px;font-weight:600">${d.name}</td>`;
-        h+=`<td style="padding:6px 8px;text-align:center;font-family:'JetBrains Mono',monospace">${d.outs}</td>`;
-        h+=`<td style="padding:6px 8px;text-align:center;font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--text)">${d.eqFlop}%</td>`;
-        h+=`<td style="padding:6px 8px;text-align:center;font-family:'JetBrains Mono',monospace;color:var(--red)">${reqEq}%</td>`;
-        h+=`<td style="padding:6px 8px;color:${canCall?'var(--gold)':'var(--green)'}">`;
-        h+=canCall?'コール可能':'フォールド';
-        h+=`</td></tr>`;
-      });
-      h+=`</tbody></table></div>`;
-
-      // Key insight for strong hands + draws calling
-      const fdDraw=possDraws.find(d=>d.name==='フラッシュドロー');
-      if(fdDraw&&fdDraw.eqFlop>reqEq&&(handStrength==='strong'||handStrength==='monster')){
-        const heroEq=100-fdDraw.eqFlop;
-        h+=`<div style="padding:10px 12px;background:var(--blueBg);border:1px solid var(--blue);border-radius:8px;margin-bottom:10px">`;
-        h+=`<strong style="color:var(--blue)">Key Insight:</strong> フラッシュドロー(${fdDraw.eqFlop}%)がコール可能だが、問題ない。`;
-        h+=`あなたの${made.name}は~${heroEq}%の勝率があり、<strong>相手がコールするたびに期待値はプラス</strong>。`;
-        h+=`「降ろす」ことより「コールさせてバリューを取る」方が利益的。`;
-        h+=`ターン以降でフラッシュが完成しなければ再度ベットでき、完成した場合はチェック/フォールドで損失を最小化できる。`;
-        h+=`</div>`;
-      }
-
-      // If we're checking and draws exist, explain why
-      if(!correctBet&&possDraws.length>0&&(handStrength==='medium'||handStrength==='weak'||handStrength==='air')){
-        h+=`<div style="padding:10px 12px;background:var(--goldBg);border:1px solid var(--gold);border-radius:8px;margin-bottom:10px">`;
-        h+=`<strong style="color:var(--gold)">Check理由:</strong> `;
-        if(handStrength==='medium')h+=`セカンドペア等のミディアムハンドでは、ベットしてレイズされると困る。チェックでポットをコントロールし、ターン以降の情報を得る。`;
-        else if(handStrength==='weak')h+=`弱いハンドでベットしても、相手が降りるハンドにはすでに負けておらず、コールしてくるハンドには負けている可能性が高い。`;
-        else h+=`エアハンドでこのボードをブラフするのはリスクが高い。相手のコールレンジが広すぎる。`;
-        h+=`</div>`;
+  if(correctBet){
+    // === BET reasoning ===
+    // Core value/bluff reason
+    if(handStrength==='monster'){
+      reasons.push(`${made.name}はこのボードで非常に強い。相手のセカンドベストハンド（トップペア、オーバーペア等）からバリューを最大限に取る。`);
+    }else if(handStrength==='strong'){
+      reasons.push(`${made.name}はバリューベットの主力。相手のミドルペアやドローからベットを通じて利益を得る。`);
+    }else if(handStrength==='medium'){
+      if(textureId==='dry')reasons.push(`Dryボードではミディアムハンドでもベット可能。相手のドローが少なく、コールレンジが狭いため小さいベットで十分にfold equity（降ろす力）を確保できる。`);
+      else reasons.push(`ミディアムハンドだが、このボードではプロテクションベットとして有効。相手のオーバーカードやドローに自由にカードを見せたくない。`);
+    }else if(handStrength==='draw'){
+      const drawNames=outs.filter(o=>o.name.includes('フラッシュ')||o.name.includes('ストレート')||o.name.includes('ガット')).map(o=>o.name);
+      reasons.push(`${drawNames.join('+')||'ドロー'}を持っているため、セミブラフとしてベット。相手がフォールドすればポット${pot}bbを獲得、コールされてもリバーまで${riverPct}%で改善する。`);
+    }else if(handStrength==='air'||handStrength==='weak'){
+      if(bdInfo&&textureId==='dry'){
+        reasons.push(`Dryボードで${heroBDFlush?'バックドアフラッシュドロー':'バックドアドロー'}がある。小さいベット(${correctSizing})でフォールドエクイティを狙いつつ、ターンで改善すれば続けてベットできる。`);
+      }else if(textureId==='paired'){
+        reasons.push(`ペアボードでは相手がヒットしにくく、レンジアドバンテージが大きい。弱いハンドでもブラフとして小さくC-betできる。`);
+      }else{
+        reasons.push(`レンジアドバンテージを活かしたブラフベット。相手のフォールドから利益を得る。`);
       }
     }
 
-    // Size comparison chart
-    h+=`<strong>サイズ別比較:</strong>`;
-    h+=`<div style="margin:6px 0;border:1px solid var(--border);border-radius:8px;overflow:hidden">`;
-    h+=`<table style="width:100%;border-collapse:collapse;font-size:11px">`;
-    h+=`<thead><tr style="background:var(--bg3)">`;
-    h+=`<th style="padding:5px 8px;text-align:left;color:var(--text3);font-weight:700">サイズ</th>`;
-    h+=`<th style="padding:5px 8px;text-align:center;color:var(--text3);font-weight:700">ベット額</th>`;
-    h+=`<th style="padding:5px 8px;text-align:center;color:var(--text3);font-weight:700">必要Eq</th>`;
-    h+=`<th style="padding:5px 8px;text-align:left;color:var(--text3);font-weight:700">FD</th>`;
-    h+=`</tr></thead><tbody>`;
-    SIZING_OPTIONS.forEach((sz,i)=>{
-      const m=SIZING_MULT[sz];
-      const b=Math.round(pot*m*10)/10;
-      const t=pot+b*2;
-      const r=Math.round(b/t*1000)/10;
-      const isCur=sz===correctSizing;
-      const fdCall=35>r;
-      const bg=isCur?'var(--accentBg)':i%2===0?'var(--bg2)':'transparent';
-      h+=`<tr style="border-top:1px solid var(--border);background:${bg};${isCur?'font-weight:700':''}">`;
-      h+=`<td style="padding:5px 8px;${isCur?'color:var(--accent)':''}">${isCur?'> ':''}<strong>${sz}</strong> pot</td>`;
-      h+=`<td style="padding:5px 8px;text-align:center;font-family:'JetBrains Mono',monospace">${b}bb</td>`;
-      h+=`<td style="padding:5px 8px;text-align:center;font-family:'JetBrains Mono',monospace">${r}%</td>`;
-      h+=`<td style="padding:5px 8px;color:${fdCall?'var(--gold)':'var(--green)'}"><span style="font-size:10px">${fdCall?'call':'fold'}</span></td>`;
-      h+=`</tr>`;
-    });
-    h+=`</tbody></table></div>`;
+    // Sizing reason
+    if(textureId==='dry'){
+      reasons.push(`<strong>サイズ: ${correctSizing} pot</strong> — Dryボードはドローが少ないのでプロテクション不要。小さいベットで十分に相手の弱いハンドをフォールドさせられる。リスクが小さいので幅広いレンジでベット可能。`);
+    }else if(textureId==='wet'){
+      const mult=SIZING_MULT[correctSizing];
+      const betBB=Math.round(pot*mult*10)/10;
+      const tPot=pot+betBB*2;
+      const reqEq=Math.round(betBB/tPot*1000)/10;
+      reasons.push(`<strong>サイズ: ${correctSizing} pot (${betBB}bb)</strong> — Wetボードはドローが多い。大きめのサイズで相手に${reqEq}%のオッズを与え、ガットショット(17%)等の弱いドローを降ろす。${boardDraws.includes('フラッシュドロー')?'フラッシュドロー(35%)はコール可だが、こちらが強いハンドなのでコールされるほど利益的。':''}`);
+    }else if(textureId==='semi_wet'){
+      reasons.push(`<strong>サイズ: ${correctSizing} pot</strong> — Semi-wetはドローがそこそこ存在する。中サイズでバリュー兼プロテクション。`);
+    }else if(textureId==='monotone'){
+      reasons.push(`<strong>サイズ: ${correctSizing} pot</strong> — モノトーンボードでは大きいベットはフラッシュ完成手にしかコールされない。${hasFlushBlocker?SUIT_SYM[monoSuit]+'ブロッカーを持っているので相手のフラッシュの組み合わせが減り、小さくベットできる。':'小さいサイズで慎重に。'}`);
+    }else if(textureId==='paired'){
+      reasons.push(`<strong>サイズ: ${correctSizing} pot</strong> — ペアボードではレンジアドバンテージが大きい。小さいサイズで広くC-betが有効。`);
+    }
 
-    h+=`</div></div>`;
-  }else if(!correctBet){
-    // Explain why check, no sizing math needed
-    h+=`<div>`;
-    h+=`<div style="font-size:11px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Check戦略</div>`;
-    h+=`<div style="font-size:12px;color:var(--text2);line-height:1.8">`;
-    h+=`チェックを選択することで：<br>`;
-    h+=`&nbsp;1. ポットサイズをコントロールし、損失を最小化<br>`;
-    h+=`&nbsp;2. 相手のブラフを誘発（チェックレイズのオプション）<br>`;
-    h+=`&nbsp;3. ターン以降の情報を得てから判断<br>`;
-    if(action.heroIP)h+=`<br>IPでのチェックは弱さを見せるが、このハンド/ボードではポットコントロールが優先。`;
-    else h+=`<br>OOPでは強いチェックレンジを持つことが重要。このハンドはそのチェックレンジに含めるべき。`;
-    h+=`</div></div>`;
+    // Pot type specific
+    if(action.type==='3BET'){
+      reasons.push(`3BETポット(${pot}bb)ではSPRが低く、小さいベットでも相手のスタックに対して大きなプレッシャーになる。${rangeAdv?boardHighName+'ハイボードでは3betterのレンジにA/K/Qが集中しており有利。':''}`);
+    }else if(action.multiway){
+      reasons.push(`マルチウェイではブラフが効きにくいが、${handStrength==='monster'||handStrength==='strong'?'バリューハンド':'セミブラフ'}を持っているのでベットが正当化される。`);
+    }
+
+  }else{
+    // === CHECK reasoning ===
+    // Core reason - specific to hand strength
+    if(handStrength==='air'){
+      reasons.push(`${made.name}（ノーペア）でベットすると、コールしてくるのは${boardHighName}ヒット、オーバーペア、ドロー等の自分より強いハンド。フォールドしてくれるハンド（弱いAハイ等）にはそもそも勝っていることも多く、ベットの期待値が低い。`);
+    }else if(handStrength==='weak'){
+      reasons.push(`弱いペアでベットしてレイズされると、コール/フォールドの非常に難しい判断を迫られる。チェックしてポットを${pot}bbのままコントロールする方が安全。`);
+    }else if(handStrength==='medium'){
+      reasons.push(`${made.name}は強すぎもせず弱すぎもしないミディアムハンド。ベットすると相手は弱いハンドをフォールドし、強いハンドだけがコール/レイズしてくるため、自分にとって不利な状況を作ってしまう。`);
+    }else if(handStrength==='strong'&&textureId==='monotone'&&!hasFlushBlocker){
+      reasons.push(`${made.name}は通常ベット対象だが、モノトーンボード(${SUIT_SYM[monoSuit]}×3)で${SUIT_SYM[monoSuit]}を持っていない。相手がフラッシュ or フラッシュドローを持っている組み合わせが多く、ベットしてもコールされる相手に負けているケースが多い。`);
+    }else if(handStrength==='draw'&&textureId==='monotone'&&!hasFlushBlocker){
+      reasons.push(`モノトーンボードでフラッシュブロッカーがないドロー。セミブラフしても相手のフラッシュ系ハンドに対して効果が薄い。`);
+    }
+
+    // Position impact
+    if(!action.heroIP){
+      reasons.push(`OOP（先にアクション）では、チェックレンジに強さを持たせることがGTOで重要。このハンドをチェックレンジに含めることで、チェック後に相手がベットしてきた場合のディフェンスが安定する。`);
+    }else{
+      reasons.push(`IPでもこのハンド/ボードではポットコントロールが優先。ターンで改善しなければ相手のベットにフォールドでき、改善すればバリューベットに切り替えられる。`);
+    }
+
+    // Pot type specific
+    if(action.type==='3BET'&&(handStrength==='air'||handStrength==='weak')){
+      reasons.push(`3BETポット(${pot}bb)は既にポットが大きい。エアハンドでベットしてコール/レイズされると損失が一気に膨らむ。チェックして最小限のリスクに留める。`);
+    }
+    if(action.multiway){
+      reasons.push(`マルチウェイポットでは少なくとも1人がヒットしている確率が高く、ブラフの成功率が著しく低い。`);
+    }
+
+    // Future plan
+    if(totalOuts>0){
+      reasons.push(`チェック後のプラン: ターンで改善(${turnPct}%)すればバリューベットに移行。改善しなければ相手のアクションを見て判断 or 低コストでギブアップ。`);
+    }
+  }
+
+  // Render reasons
+  reasons.forEach(r=>{
+    h+=`<div style="margin-bottom:8px;padding:6px 10px;background:var(--bg2);border-radius:6px;border-left:2px solid var(--border)">${r}</div>`;
+  });
+  h+=`</div></div>`;
+
+  // ===== 3. Sizing Math (bet時のみ、簡潔に) =====
+  if(correctBet&&correctSizing){
+    const mult=SIZING_MULT[correctSizing];
+    const betBB=Math.round(pot*mult*10)/10;
+    const tPot=pot+betBB*2;
+    const reqEq=Math.round(betBB/tPot*1000)/10;
+
+    // Only show draw table if board has draws
+    const possDraws=[];
+    if(maxSuit>=2)possDraws.push({name:'フラッシュドロー',eq:35});
+    if(spread<=4)possDraws.push({name:'OESD',eq:32});
+    if(spread<=6&&spread>2)possDraws.push({name:'ガットショット',eq:16});
+
+    if(possDraws.length>0){
+      h+=`<div>`;
+      h+=`<div style="font-size:12px;font-weight:700;color:var(--text3);margin-bottom:6px">相手のドロー vs このベットサイズ</div>`;
+      h+=`<div style="font-size:12px;color:var(--text3);margin-bottom:6px">ベット${betBB}bb → 相手の必要エクイティ: <strong style="color:var(--red)">${reqEq}%</strong></div>`;
+      h+=`<div style="display:flex;flex-wrap:wrap;gap:6px">`;
+      possDraws.forEach(d=>{
+        const canCall=d.eq>reqEq;
+        h+=`<div style="padding:6px 10px;border-radius:6px;font-size:11px;font-weight:600;background:${canCall?'var(--goldBg,rgba(255,200,0,0.1))':'var(--greenBg,rgba(0,200,0,0.1))'};border:1px solid ${canCall?'var(--gold)':'var(--green)'};color:${canCall?'var(--gold)':'var(--green)'}">`;
+        h+=`${d.name}(${d.eq}%) → ${canCall?'コール可':'フォールド'}`;
+        h+=`</div>`;
+      });
+      h+=`</div>`;
+
+      // Key insight for strong hands when draws can call
+      const fd=possDraws.find(d=>d.name==='フラッシュドロー');
+      if(fd&&fd.eq>reqEq&&(handStrength==='strong'||handStrength==='monster')){
+        h+=`<div style="margin-top:8px;padding:8px 10px;background:var(--bg2);border-radius:6px;font-size:12px;color:var(--text3)">`;
+        h+=`フラッシュドローにコールされても問題ない — あなたのハンドは~${100-fd.eq}%で勝っており、コールされるほど期待値プラス。`;
+        h+=`</div>`;
+      }
+      h+=`</div>`;
+    }
   }
 
   return h;
