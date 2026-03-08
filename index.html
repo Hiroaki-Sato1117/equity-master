@@ -183,6 +183,30 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 .prob-val{font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--accent);}
 .prob-approx{font-family:'JetBrains Mono',monospace;color:var(--text3);font-size:11px;}
 
+/* C-BET */
+.cbet-ctx{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:12px 16px;background:var(--bg2);border-radius:10px;margin-bottom:16px;font-size:12px;color:var(--text2);}
+.cbet-bdg{padding:3px 8px;border-radius:4px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;}
+.cbet-bdg.srp{background:var(--blueBg);color:var(--blue);}.cbet-bdg.bet3{background:var(--redBg);color:var(--red);}
+.cbet-bdg.mw{background:var(--goldBg);color:var(--gold);}.cbet-bdg.ip{background:var(--greenBg);color:var(--green);}
+.cbet-bdg.oop{background:var(--redBg);color:var(--red);}
+.sz-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0;}
+.sz-btn{padding:14px 8px;border:2px solid var(--border2);border-radius:10px;background:var(--bg2);cursor:pointer;text-align:center;transition:all .15s;font-family:inherit;}
+.sz-btn:hover{border-color:var(--accent);background:var(--accentBg);}
+.sz-btn.selected{border-color:var(--accent);background:var(--accentBg);box-shadow:0 0 0 1px var(--accent);}
+.sz-btn .sz-frac{font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:800;color:var(--text);}
+.sz-btn .sz-chips{font-size:10px;color:var(--text3);margin-top:2px;}
+.sz-btn.correct{border-color:var(--green);background:var(--greenBg);}
+.sz-btn.wrong{border-color:var(--red);background:var(--redBg);}
+.sz-btn.missed{border-color:var(--gold);background:var(--goldBg);}
+.cb-big{padding:20px 32px;border:2px solid var(--border2);border-radius:14px;font-size:18px;font-weight:800;cursor:pointer;transition:all .15s;flex:1;text-align:center;font-family:inherit;background:var(--bg2);color:var(--text);}
+.cb-big:hover{transform:translateY(-2px);box-shadow:var(--shadow2);}
+.cb-big.bet-b:hover,.cb-big.sel-bet{border-color:var(--green);background:var(--greenBg);color:var(--green);}
+.cb-big.chk-b:hover,.cb-big.sel-chk{border-color:var(--blue);background:var(--blueBg);color:var(--blue);}
+.ba-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0;}
+.ba-item{padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--bg2);}
+.ba-item .ba-l{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;}
+.ba-item .ba-v{font-size:14px;font-weight:700;color:var(--text);}
+
 /* Responsive */
 @media(max-width:600px){
 .main{padding:12px;}.nav{padding:0 12px;}.nav-brand span{display:none;}
@@ -190,6 +214,8 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 .pk.out-card{width:30px;height:42px;}.pk.out-card .pk-rank{font-size:9px;}.pk.out-card .pk-suit{font-size:10px;}
 .stat-bar{gap:6px;}.stat-box{padding:8px 6px;min-width:70px;}.sv{font-size:18px;}
 .stats-row{grid-template-columns:1fr 1fr;}
+.sz-grid{grid-template-columns:repeat(2,1fr);}
+.cb-big{padding:16px 20px;font-size:16px;}
 }
 </style>
 </head>
@@ -209,6 +235,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 <div class="tc" id="tList"></div>
 <div class="tc" id="tStats"></div>
 <div class="tc" id="tGuide"></div>
+<div class="tc" id="tCbet"></div>
 </div>
 
 <script>
@@ -231,7 +258,7 @@ const DRAW_TYPES = [
   {id:'pair_improve',  label:'Pair Improvement',desc:'Pair→Trips/2P, 2P→FH, Set→FH/Quads'},
 ];
 
-const TABS = [{id:'tasks',label:'TASKS'},{id:'list',label:'LIST'},{id:'stats',label:'STATS'},{id:'guide',label:'GUIDE'}];
+const TABS = [{id:'tasks',label:'TASKS'},{id:'cbet',label:'C-BET'},{id:'list',label:'LIST'},{id:'stats',label:'STATS'},{id:'guide',label:'GUIDE'}];
 const SK = {DATA:'pet1',TAB:'pet_tab',THEME:'pet_theme'};
 
 /* ============================================================
@@ -239,13 +266,14 @@ const SK = {DATA:'pet1',TAB:'pet_tab',THEME:'pet_theme'};
    ============================================================ */
 let D = {
   sets: [],
+  cbetSets: [],
   dailyLog: {},
-  settings: {handsPerSet:3, drawTypes:DRAW_TYPES.filter(d=>d.id!=='pair_improve').map(d=>d.id)}
+  settings: {handsPerSet:3, drawTypes:DRAW_TYPES.filter(d=>d.id!=='pair_improve').map(d=>d.id), cbetHandsPerSet:5}
 };
 
 function td(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function save(){try{localStorage.setItem(SK.DATA,JSON.stringify(D));}catch(e){}}
-function load(){try{const s=localStorage.getItem(SK.DATA);if(s){const p=JSON.parse(s);Object.assign(D,p);if(!D.settings)D.settings={handsPerSet:3,drawTypes:DRAW_TYPES.filter(d=>d.id!=='pair_improve').map(d=>d.id)};if(!D.dailyLog)D.dailyLog={};}}catch(e){}}
+function load(){try{const s=localStorage.getItem(SK.DATA);if(s){const p=JSON.parse(s);Object.assign(D,p);if(!D.settings)D.settings={handsPerSet:3,drawTypes:DRAW_TYPES.filter(d=>d.id!=='pair_improve').map(d=>d.id),cbetHandsPerSet:5};if(!D.dailyLog)D.dailyLog={};if(!D.cbetSets)D.cbetSets=[];if(!D.settings.cbetHandsPerSet)D.settings.cbetHandsPerSet=5;}}catch(e){}}
 
 /* ============================================================
    DECK & CARD UTILITIES
@@ -687,9 +715,10 @@ function switchTab(id){
   localStorage.setItem(SK.TAB,id);
   document.querySelectorAll('.ntab').forEach(b=>b.classList.toggle('active',b.dataset.tab===id));
   document.querySelectorAll('.tc').forEach(el=>el.classList.remove('active'));
-  const map={tasks:'tTasks',list:'tList',stats:'tStats',guide:'tGuide'};
+  const map={tasks:'tTasks',cbet:'tCbet',list:'tList',stats:'tStats',guide:'tGuide'};
   document.getElementById(map[id]).classList.add('active');
   if(id==='tasks')rTasks();
+  else if(id==='cbet')rCbet();
   else if(id==='list')rList();
   else if(id==='stats')rStats();
   else if(id==='guide')rGuide();
@@ -1486,55 +1515,847 @@ function renderSetComplete(){
 }
 
 /* ============================================================
+   C-BET TRAINER - CONSTANTS
+   ============================================================ */
+const BOARD_TEXTURES = [
+  {id:'dry',      label:'Dry',      desc:'レインボー、非コネクト、ドロー少'},
+  {id:'semi_wet', label:'Semi-wet', desc:'やや接続 or ツートーン、中程度のドロー'},
+  {id:'wet',      label:'Wet',      desc:'コネクト＋ツートーン、ドロー多数'},
+  {id:'monotone', label:'Monotone', desc:'3枚同スート'},
+  {id:'paired',   label:'Paired',   desc:'ボードにペアあり'},
+];
+
+const CBET_SCENARIOS = [
+  {id:'srp_btn_bb',  label:'BTN open → BB call',       heroPos:'BTN', type:'SRP',  heroIP:true,  potBB:6.5},
+  {id:'srp_co_bb',   label:'CO open → BB call',        heroPos:'CO',  type:'SRP',  heroIP:true,  potBB:6.5},
+  {id:'srp_mp_bb',   label:'MP open → BB call',        heroPos:'MP',  type:'SRP',  heroIP:true,  potBB:6.5},
+  {id:'srp_ep_bb',   label:'EP open → BB call',        heroPos:'EP',  type:'SRP',  heroIP:true,  potBB:6.5},
+  {id:'srp_sb_bb',   label:'SB open → BB call',        heroPos:'SB',  type:'SRP',  heroIP:false, potBB:6},
+  {id:'srp_co_btn',  label:'CO open → BTN call',       heroPos:'CO',  type:'SRP',  heroIP:false, potBB:6.5},
+  {id:'3bet_btn_co', label:'BTN 3bet vs CO open',      heroPos:'BTN', type:'3BET', heroIP:true,  potBB:22},
+  {id:'3bet_bb_btn', label:'BB 3bet vs BTN open',      heroPos:'BB',  type:'3BET', heroIP:false, potBB:22},
+  {id:'mw_ep',       label:'EP open → MP+BB call',     heroPos:'EP',  type:'MW',   heroIP:true,  potBB:10, multiway:true},
+];
+
+const OPEN_RANGES = {
+  EP: ['AA','KK','QQ','JJ','TT','99','AKs','AQs','AJs','ATs','AKo','AQo','KQs'],
+  MP: ['AA','KK','QQ','JJ','TT','99','88','AKs','AQs','AJs','ATs','A9s','AKo','AQo','AJo','KQs','KJs','QJs','KQo'],
+  CO: ['AA','KK','QQ','JJ','TT','99','88','77','66','55','AKs','AQs','AJs','ATs','A9s','A8s','A7s','A6s','A5s','AKo','AQo','AJo','ATo','KQs','KJs','KTs','K9s','QJs','QTs','JTs','T9s','98s','87s','KQo','KJo','QJo'],
+  BTN: ['AA','KK','QQ','JJ','TT','99','88','77','66','55','44','AKs','AQs','AJs','ATs','A9s','A8s','A7s','A6s','A5s','A4s','A3s','A2s','AKo','AQo','AJo','ATo','A9o','KQs','KJs','KTs','K9s','K8s','QJs','QTs','Q9s','JTs','J9s','T9s','T8s','98s','97s','87s','76s','65s','54s','KQo','KJo','KTo','QJo','QTo','JTo'],
+  SB: ['AA','KK','QQ','JJ','TT','99','88','77','AKs','AQs','AJs','ATs','A9s','AKo','AQo','AJo','KQs','KJs','QJs','KQo'],
+  BB: ['AA','KK','QQ','JJ','TT','99','88','AKs','AQs','AJs','ATs','AKo','AQo','KQs','KJs','QJs']
+};
+
+const SIZING_OPTIONS = ['1/4','1/3','1/2','2/3','3/4','pot'];
+const SIZING_MULT = {'1/4':0.25,'1/3':0.33,'1/2':0.5,'2/3':0.67,'3/4':0.75,'pot':1.0};
+const SIZING_LABELS = {'1/4':'1/4','1/3':'1/3','1/2':'1/2','2/3':'2/3','3/4':'3/4','pot':'Pot'};
+
+/* ============================================================
+   C-BET TRAINER - CORE LOGIC
+   ============================================================ */
+function generateHandFromNotation(notation, excludeCards){
+  const excSet=new Set(excludeCards.map(cardKey));
+  if(notation.length===2){
+    // Pair
+    const r=notation[0];
+    const avail=SUITS.filter(s=>!excSet.has(r+s));
+    if(avail.length<2)return null;
+    const sh=shuffle(avail);
+    return [{r,s:sh[0]},{r,s:sh[1]}];
+  }
+  const r1=notation[0],r2=notation[1],suited=notation[2]==='s';
+  if(suited){
+    const avail=SUITS.filter(s=>!excSet.has(r1+s)&&!excSet.has(r2+s));
+    if(avail.length===0)return null;
+    const s=avail[Math.floor(Math.random()*avail.length)];
+    return [{r:r1,s},{r:r2,s}];
+  }
+  // Offsuit
+  const s1opts=shuffle(SUITS.filter(s=>!excSet.has(r1+s)));
+  for(const s1 of s1opts){
+    const s2opts=shuffle(SUITS.filter(s=>s!==s1&&!excSet.has(r2+s)));
+    if(s2opts.length>0)return [{r:r1,s:s1},{r:r2,s:s2opts[0]}];
+  }
+  return null;
+}
+
+function classifyBoardTexture(flop){
+  const suitCounts={};
+  flop.forEach(c=>{suitCounts[c.s]=(suitCounts[c.s]||0)+1;});
+  const maxSuit=Math.max(...Object.values(suitCounts));
+  const isMonotone=maxSuit===3;
+  const isTwoTone=maxSuit===2;
+
+  const rankCounts={};
+  flop.forEach(c=>{rankCounts[c.r]=(rankCounts[c.r]||0)+1;});
+  const isPaired=Object.values(rankCounts).some(v=>v>=2);
+
+  const vals=flop.map(c=>rv(c)).sort((a,b)=>a-b);
+  const spread=vals[2]-vals[0];
+  const gap1=vals[1]-vals[0], gap2=vals[2]-vals[1];
+
+  // Count straight windows containing all 3 cards
+  let windows=0;
+  const vset=new Set(vals);
+  if(vals.includes(14))vset.add(1);
+  for(let low=1;low<=10;low++){
+    let ok=true;
+    for(const v of vals){
+      const vv=v===14?(low<=5?1:14):v;
+      if(vv<low||vv>low+4){ok=false;break;}
+    }
+    if(ok)windows++;
+  }
+
+  // Wetness score (0-10)
+  let wetness=0;
+  if(isTwoTone)wetness+=3;
+  if(isMonotone)wetness+=5;
+  if(spread<=4)wetness+=2;
+  if(spread<=2)wetness+=1;
+  if(gap1<=2&&gap2<=2)wetness+=1;
+  if(windows>=3)wetness+=1;
+  if(windows>=5)wetness+=1;
+
+  // Priority: paired > monotone > wet(>=5) > semi_wet(>=3) > dry
+  if(isPaired)return {id:'paired',wetness};
+  if(isMonotone)return {id:'monotone',wetness};
+  if(wetness>=5)return {id:'wet',wetness};
+  if(wetness>=3)return {id:'semi_wet',wetness};
+  return {id:'dry',wetness};
+}
+
+function classifyCbetHandStrength(hero, flop){
+  const made=evaluateMadeHand(hero,flop);
+  const boardVals=flop.map(c=>rv(c)).sort((a,b)=>b-a);
+  const heroVals=hero.map(c=>rv(c)).sort((a,b)=>b-a);
+
+  // Monster: set+, two pair+
+  if(made.rank>=3)return 'monster';
+  if(made.rank===2)return 'monster';
+
+  if(made.rank===1){
+    const rc={};[...hero,...flop].forEach(c=>{rc[c.r]=(rc[c.r]||0)+1;});
+    const pairRank=Object.keys(rc).find(k=>rc[k]===2);
+    const pairVal=RANK_VAL[pairRank];
+    const heroContrib=hero.some(c=>c.r===pairRank);
+
+    if(!heroContrib){
+      // Board pair, no hero involvement
+      return 'weak';
+    }
+
+    // Pocket pair (overpair check)
+    if(hero[0].r===hero[1].r&&hero[0].r===pairRank){
+      if(pairVal>boardVals[0])return 'strong'; // overpair
+      if(pairVal===boardVals[0])return 'strong'; // matches top card (top pair equiv)
+      return 'medium'; // underpair
+    }
+
+    if(pairVal===boardVals[0])return 'strong'; // top pair
+    if(pairVal===boardVals[1])return 'medium'; // second pair
+    return 'weak'; // bottom pair
+  }
+
+  // No pair - check draws
+  const allCards=[...hero,...flop];
+  const suitCounts={};
+  allCards.forEach(c=>{suitCounts[c.s]=(suitCounts[c.s]||0)+1;});
+  const hasFlushDraw=Object.entries(suitCounts).some(([s,cnt])=>cnt>=4&&hero.some(c=>c.s===s));
+
+  // Straight draw detection
+  const allVals=[...new Set(allCards.map(c=>rv(c)))].sort((a,b)=>a-b);
+  if(allVals.includes(14))allVals.unshift(1);
+  const heroValSet=new Set(hero.map(c=>rv(c)));
+  if(heroValSet.has(14))heroValSet.add(1);
+  let hasOESD=false,hasGutshot=false;
+  for(let low=1;low<=10;low++){
+    const win=[];for(let v=low;v<=low+4;v++)win.push(v);
+    const have=win.filter(v=>allVals.includes(v));
+    const miss=win.filter(v=>!allVals.includes(v));
+    const heroIn=have.some(v=>heroValSet.has(v));
+    if(have.length===4&&miss.length===1&&heroIn){
+      const m=miss[0];
+      if(m===low||m===low+4)hasOESD=true;
+      else hasGutshot=true;
+    }
+  }
+
+  if(hasFlushDraw||hasOESD)return 'draw';
+  if(hasGutshot)return 'weak';
+
+  // Overcards
+  if(heroVals[0]>boardVals[0]&&heroVals[1]>boardVals[0])return 'weak';
+
+  return 'air';
+}
+
+function hasBackdoorDraw(hero, flop){
+  const all=[...hero,...flop];
+  // Backdoor flush: 3 of same suit with hero contributing
+  const sc={};all.forEach(c=>{sc[c.s]=(sc[c.s]||0)+1;});
+  for(const s in sc){
+    if(sc[s]>=3&&hero.some(c=>c.s===s))return true;
+  }
+  // Backdoor straight: 3 cards within 5-window with hero contribution
+  const vals=[...new Set(all.map(c=>rv(c)))].sort((a,b)=>a-b);
+  if(vals.includes(14))vals.unshift(1);
+  const hv=new Set(hero.map(c=>rv(c)));if(hv.has(14))hv.add(1);
+  for(let low=1;low<=10;low++){
+    const win=[];for(let v=low;v<=low+4;v++)win.push(v);
+    const have=win.filter(v=>vals.includes(v));
+    if(have.length>=3&&have.some(v=>hv.has(v)))return true;
+  }
+  return false;
+}
+
+function determineCbetAnswer(hero, flop, textureId, strength, action){
+  const boardHigh=Math.max(...flop.map(c=>rv(c)));
+  const rangeAdv=boardHigh>=11; // J+ high board = range advantage for raiser
+
+  // Multiway
+  if(action.multiway){
+    if(strength==='monster'||strength==='strong')return{bet:true,sizing:'2/3',explanation:'マルチウェイ: 強いハンドでバリューベット。複数の相手に大きめのサイズ'};
+    if(strength==='draw')return{bet:true,sizing:'2/3',explanation:'マルチウェイ: 強いドローでセミブラフ'};
+    return{bet:false,sizing:null,explanation:'マルチウェイ: 複数の相手がいるためブラフ頻度を大幅に下げる'};
+  }
+
+  // 3BET pot
+  if(action.type==='3BET'){
+    if(textureId==='dry'||textureId==='paired'){
+      if(strength!=='air')return{bet:true,sizing:'1/3',explanation:'3BETポット + Dry/Paired: レンジアドバンテージ大。小さく高頻度C-bet'};
+      if(rangeAdv)return{bet:true,sizing:'1/3',explanation:'3BETポット + ハイボード: レンジアドバンテージで広くC-bet'};
+      return{bet:false,sizing:null,explanation:'3BETポット + ロウボード: エアハンドはチェック'};
+    }
+    if(strength==='monster'||strength==='strong'||strength==='draw')return{bet:true,sizing:'1/2',explanation:'3BETポット + Wet: バリュー/ドローでベット'};
+    return{bet:false,sizing:null,explanation:'3BETポット + Wet: 弱いハンドは選択的にチェック'};
+  }
+
+  // SRP
+  switch(textureId){
+    case 'dry':
+      if(strength==='monster'||strength==='strong'||strength==='medium')
+        return{bet:true,sizing:'1/3',explanation:'Dryボード: 小さいサイズで高頻度ベット。相手のレンジが弱くフォールド率が高い'};
+      if(strength==='draw')
+        return{bet:true,sizing:'1/3',explanation:'Dryボード: ドローでも小さいベットでfold equityを獲得'};
+      if(hasBackdoorDraw(hero,flop))
+        return{bet:true,sizing:'1/3',explanation:'Dryボード + バックドアドロー: ターンで改善の可能性あり。小さくベット'};
+      return{bet:false,sizing:null,explanation:'Dryボード: バックドアドローもないエアハンドはチェック'};
+
+    case 'semi_wet':
+      if(strength==='monster'||strength==='strong')
+        return{bet:true,sizing:'1/2',explanation:'Semi-wet: 強いハンドでプロテクションベット。ドローに適切でないオッズを与える'};
+      if(strength==='medium'){
+        if(action.heroIP)return{bet:true,sizing:'1/2',explanation:'Semi-wet + IP: ミディアムハンドでベット。相手の弱いレンジをフォールドさせる'};
+        return{bet:false,sizing:null,explanation:'Semi-wet + OOP: ミディアムハンドはチェック。ポットコントロール'};
+      }
+      if(strength==='draw')
+        return{bet:true,sizing:'1/2',explanation:'Semi-wet: ドローでセミブラフ。fold equity + ヒット時のバリュー'};
+      return{bet:false,sizing:null,explanation:'Semi-wet: 弱いハンド/エアはチェック'};
+
+    case 'wet':
+      if(strength==='monster'||strength==='strong')
+        return{bet:true,sizing:'3/4',explanation:'Wetボード: 大きくベット。ドローに不正確なオッズを与えプロテクション'};
+      if(strength==='medium')
+        return{bet:false,sizing:null,explanation:'Wetボード: ミディアムハンドはチェック。ターン以降にプレイ判断'};
+      if(strength==='draw')
+        return{bet:true,sizing:'2/3',explanation:'Wetボード: 強いドローでセミブラフ。相手をフォールドさせつつヒット時に大きなポット'};
+      return{bet:false,sizing:null,explanation:'Wetボード: 弱いハンドはチェック。ブラフキャッチされるリスクが高い'};
+
+    case 'monotone':
+      if(strength==='monster'||strength==='strong')
+        return{bet:true,sizing:'1/2',explanation:'Monotone: 強いハンドでベット。フラッシュ完成を警戒しつつバリュー'};
+      if(strength==='medium')
+        return{bet:false,sizing:null,explanation:'Monotone: ミディアムハンドはチェック。フラッシュが完成している相手に注意'};
+      if(strength==='draw'){
+        const boardSuits={};flop.forEach(c=>{boardSuits[c.s]=(boardSuits[c.s]||0)+1;});
+        const monoSuit=Object.keys(boardSuits).find(s=>boardSuits[s]===3);
+        if(hero.some(c=>c.s===monoSuit))
+          return{bet:true,sizing:'1/3',explanation:'Monotone + フラッシュドロー: ブロッカー効果あり。小さくベット'};
+        return{bet:false,sizing:null,explanation:'Monotone: フラッシュドローなしのドローはチェック'};
+      }
+      return{bet:false,sizing:null,explanation:'Monotone: エアハンドはチェック。相手のフラッシュ系ハンドに注意'};
+
+    case 'paired':
+      if(strength==='monster'||strength==='strong')
+        return{bet:true,sizing:'1/3',explanation:'Paired: バリューベット。ペアボードでは相手が弱いレンジをフォールドしやすい'};
+      if(strength==='medium'||strength==='draw')
+        return{bet:true,sizing:'1/3',explanation:'Paired: 小さくベット。ペアボードでは広くC-bet可能'};
+      if(rangeAdv)
+        return{bet:true,sizing:'1/3',explanation:'Paired + ハイボード: レンジアドバンテージで広くC-bet'};
+      return{bet:false,sizing:null,explanation:'Paired + ロウボード: レンジアドバンテージが薄いのでチェック'};
+
+    default:
+      return{bet:true,sizing:'1/2',explanation:'ベット'};
+  }
+}
+
+function scoreCbetQuestion(userTex, correctTex, userBet, correctBet, userSz, correctSz){
+  let earned=0;
+  const maxPts=5;
+  // Texture: 1pt
+  if(userTex===correctTex)earned+=1;
+  // Bet/Check: 2pts
+  if(userBet===correctBet)earned+=2;
+  // Sizing: 2pts
+  if(correctBet&&userBet){
+    if(userSz===correctSz)earned+=2;
+    else{
+      const ai=SIZING_OPTIONS.indexOf(userSz),bi=SIZING_OPTIONS.indexOf(correctSz);
+      if(ai>=0&&bi>=0&&Math.abs(ai-bi)<=1)earned+=1;
+    }
+  }else if(!correctBet&&!userBet){
+    earned+=2; // check correct → auto sizing pts
+  }
+  return{earned,maxPts};
+}
+
+function generateCbetScenario(){
+  const action=CBET_SCENARIOS[Math.floor(Math.random()*CBET_SCENARIOS.length)];
+  const range=OPEN_RANGES[action.heroPos]||OPEN_RANGES.CO;
+
+  for(let attempt=0;attempt<200;attempt++){
+    const notation=range[Math.floor(Math.random()*range.length)];
+    const hero=generateHandFromNotation(notation,[]);
+    if(!hero)continue;
+
+    const used=new Set(hero.map(cardKey));
+    const deck=shuffle(makeDeck().filter(c=>!used.has(cardKey(c))));
+    const flop=[deck[0],deck[1],deck[2]];
+
+    const tex=classifyBoardTexture(flop);
+    const strength=classifyCbetHandStrength(hero,flop);
+    const answer=determineCbetAnswer(hero,flop,tex.id,strength,action);
+
+    return{hero,flop,action,textureId:tex.id,wetness:tex.wetness,handStrength:strength,correctBet:answer.bet,correctSizing:answer.sizing,explanation:answer.explanation};
+  }
+  // Fallback
+  const deck=shuffle(makeDeck());
+  const hero=[deck[0],deck[1]],flop=[deck[2],deck[3],deck[4]];
+  const tex=classifyBoardTexture(flop);
+  return{hero,flop,action:CBET_SCENARIOS[0],textureId:tex.id,wetness:tex.wetness,handStrength:'air',correctBet:true,correctSizing:'1/2',explanation:'Default'};
+}
+
+/* ============================================================
+   C-BET TRAINER - GAME STATE & UI
+   ============================================================ */
+let CB=null;
+function resetCbet(){
+  CB={active:false,scenarios:[],currentIdx:0,phase:'idle',currentScenario:null,startTime:null,results:[],_userTexture:null,_userBetDecision:null,_userSizing:null};
+}
+
+function rCbet(){
+  const el=document.getElementById('tCbet');
+  if(!CB)resetCbet();
+  if(!CB.active){renderCbetIdle(el);return;}
+  switch(CB.phase){
+    case 'show_scenario':renderCbetScenario(el);break;
+    case 'texture_quiz':renderCbetTextureQuiz(el);break;
+    case 'bet_decision':renderCbetBetDecision(el);break;
+    case 'sizing_quiz':renderCbetSizingQuiz(el);break;
+    case 'show_result':renderCbetResult(el);break;
+    case 'set_complete':renderCbetSetComplete(el);break;
+    default:renderCbetIdle(el);
+  }
+}
+
+function renderCbetIdle(el){
+  let h=`<div style="text-align:center;padding:40px 0">`;
+  h+=`<div style="font-size:48px;margin-bottom:16px;opacity:.7">\u2660</div>`;
+  h+=`<h2 style="font-size:22px;font-weight:800;margin-bottom:8px">C-BET Trainer</h2>`;
+  h+=`<p style="font-size:14px;color:var(--text3);margin-bottom:32px">ボードテクスチャの分析とC-bet判断力を鍛える</p>`;
+  h+=`<button class="btn btn-p btn-lg" onclick="startCbetSet()">Start Set</button>`;
+  h+=`</div>`;
+
+  h+=`<div class="card" style="margin-top:24px"><div class="card-h"><span class="card-title">Settings</span></div><div class="card-body">`;
+  h+=`<div class="setting-row"><div><div class="setting-label">Hands per Set</div><div class="setting-sub">1セットの問題数</div></div>`;
+  h+=`<div class="setting-ctrl"><select id="setCbetHands" onchange="D.settings.cbetHandsPerSet=+this.value;save();">`;
+  [3,5,10,15].forEach(n=>{h+=`<option value="${n}"${D.settings.cbetHandsPerSet===n?' selected':''}>${n}</option>`;});
+  h+=`</select></div></div>`;
+  h+=`</div></div>`;
+
+  const todayKey=td();
+  const todayData=D.dailyLog[todayKey]||{};
+  const cbSets=todayData.cbetSets||0;
+  const cbQ=todayData.cbetQuestions||0;
+  const cbC=todayData.cbetCorrect||0;
+  h+=`<div class="stat-bar" style="margin-top:20px">`;
+  h+=`<div class="stat-box"><div class="sv">${D.cbetSets.length}</div><div class="sl">Total Sets</div></div>`;
+  h+=`<div class="stat-box"><div class="sv">${cbSets}</div><div class="sl">Today</div></div>`;
+  h+=`<div class="stat-box"><div class="sv">${cbQ}</div><div class="sl">Questions Today</div></div>`;
+  h+=`<div class="stat-box"><div class="sv gold">${cbQ?Math.round(cbC/cbQ*100):0}%</div><div class="sl">Today Accuracy</div></div>`;
+  h+=`</div>`;
+
+  el.innerHTML=h;
+}
+
+function startCbetSet(){
+  resetCbet();
+  CB.active=true;
+  CB.startTime=Date.now();
+  const count=D.settings.cbetHandsPerSet||5;
+  for(let i=0;i<count;i++)CB.scenarios.push(generateCbetScenario());
+  CB.currentIdx=0;
+  CB.currentScenario=CB.scenarios[0];
+  CB.phase='show_scenario';
+  playSound('deal');
+  rCbet();
+}
+
+function renderCbetProgress(){
+  const total=CB.scenarios.length;
+  let h=`<div class="prog">`;
+  for(let i=0;i<total;i++){
+    let cls='dot';
+    if(i<CB.results.length){
+      const r=CB.results[i];
+      cls+=r.earned===r.maxPts?' done':' wrong-dot';
+    }else if(i===CB.currentIdx){cls+=' current';}
+    h+=`<div class="${cls}"></div>`;
+  }
+  h+=`</div>`;
+  h+=`<div style="text-align:center;font-size:12px;color:var(--text3);margin-bottom:16px;font-family:'JetBrains Mono',monospace">Hand ${CB.currentIdx+1} / ${total}</div>`;
+  return h;
+}
+
+function renderCbetContext(sc){
+  const action=sc.action;
+  const typeClass=action.type==='3BET'?'bet3':action.type==='MW'?'mw':'srp';
+  const posClass=action.heroIP?'ip':'oop';
+  let h=`<div class="cbet-ctx">`;
+  h+=`<span class="cbet-bdg ${typeClass}">${action.type}</span>`;
+  h+=`<span class="cbet-bdg ${posClass}">${action.heroIP?'IP':'OOP'}</span>`;
+  h+=`<span style="font-weight:600">${action.label}</span>`;
+  h+=`<span style="margin-left:auto;font-family:'JetBrains Mono',monospace;font-weight:700">Pot: ${action.potBB}bb</span>`;
+  h+=`</div>`;
+  return h;
+}
+
+function renderCbetCards(sc){
+  let h=`<div style="text-align:center;margin-bottom:4px;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:1px">Your Hand</div>`;
+  h+=`<div class="hero-area">${sc.hero.map(c=>cardHTML(c,'deal-anim')).join('')}</div>`;
+  h+=`<div style="text-align:center;margin:12px 0 4px;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:1px">Flop</div>`;
+  h+=`<div class="board-area">${sc.flop.map(c=>cardHTML(c,'deal-anim')).join('')}</div>`;
+  return h;
+}
+
+function renderCbetScenario(el){
+  const sc=CB.currentScenario;
+  let h=renderCbetProgress();
+  h+=renderCbetContext(sc);
+  h+=renderCbetCards(sc);
+
+  const made=evaluateMadeHand(sc.hero,sc.flop);
+  h+=`<div style="text-align:center;margin:8px 0;font-size:13px;font-weight:600;color:var(--text2)">Made hand: <span style="color:var(--accent);font-weight:700">${made.name}</span></div>`;
+
+  h+=`<div style="text-align:center;margin-top:20px"><button class="btn btn-p" onclick="CB.phase='texture_quiz';rCbet()">Analyze Board</button></div>`;
+  el.innerHTML=h;
+}
+
+function renderCbetTextureQuiz(el){
+  const sc=CB.currentScenario;
+  let h=renderCbetProgress();
+  h+=renderCbetContext(sc);
+  h+=renderCbetCards(sc);
+
+  const made=evaluateMadeHand(sc.hero,sc.flop);
+  h+=`<div style="text-align:center;margin:8px 0;font-size:13px;font-weight:600;color:var(--text2)">Made hand: <span style="color:var(--accent);font-weight:700">${made.name}</span></div>`;
+
+  h+=`<div class="step-ind">Step 1: Board Texture</div>`;
+  h+=`<p style="font-size:13px;color:var(--text2);margin-bottom:12px">このボードのテクスチャは？</p>`;
+  h+=`<div class="chk-group" id="texCheckGroup">`;
+  BOARD_TEXTURES.forEach(bt=>{
+    h+=`<div class="chk-item" data-tex="${bt.id}" onclick="cbetSelectTexture(this)">`;
+    h+=`<div class="chk-box"></div>`;
+    h+=`<span class="chk-label">${bt.label}</span>`;
+    h+=`<span class="chk-detail">${bt.desc}</span>`;
+    h+=`</div>`;
+  });
+  h+=`</div>`;
+  h+=`<div style="display:flex;gap:8px;margin-top:16px"><button class="btn btn-p" onclick="submitCbetTexture()">Submit</button></div>`;
+  el.innerHTML=h;
+}
+
+function cbetSelectTexture(el){
+  document.querySelectorAll('#texCheckGroup .chk-item').forEach(e=>{e.classList.remove('selected');e.querySelector('.chk-box').textContent='';});
+  el.classList.add('selected');
+  el.querySelector('.chk-box').textContent='\u2713';
+}
+
+function submitCbetTexture(){
+  const sel=document.querySelector('#texCheckGroup .chk-item.selected');
+  if(!sel){alert('テクスチャを選択してください');return;}
+  CB._userTexture=sel.dataset.tex;
+  CB.phase='bet_decision';
+  const isCorrect=CB._userTexture===CB.currentScenario.textureId;
+  playSound(isCorrect?'correct':'wrong');
+  rCbet();
+}
+
+function renderCbetBetDecision(el){
+  const sc=CB.currentScenario;
+  const texCorrect=CB._userTexture===sc.textureId;
+  const correctTex=BOARD_TEXTURES.find(b=>b.id===sc.textureId);
+  const userTex=BOARD_TEXTURES.find(b=>b.id===CB._userTexture);
+
+  let h=renderCbetProgress();
+  h+=renderCbetContext(sc);
+  h+=renderCbetCards(sc);
+
+  // Texture result
+  h+=`<div class="result-box ${texCorrect?'correct-box':'wrong-box'}" style="margin-bottom:16px">`;
+  h+=`<div class="result-title">Board Texture</div>`;
+  h+=`<div class="result-detail">`;
+  if(texCorrect)h+=`<span style="color:var(--green)">\u2713 ${correctTex.label}</span> — 正解！`;
+  else h+=`<span style="color:var(--red)">\u2717 ${userTex.label}</span> → 正解: <strong>${correctTex.label}</strong> (${correctTex.desc})`;
+  h+=`</div></div>`;
+
+  h+=`<div class="step-ind">Step 2: C-bet Decision</div>`;
+  h+=`<p style="font-size:13px;color:var(--text2);margin-bottom:16px">C-betしますか？チェックしますか？</p>`;
+  h+=`<div style="display:flex;gap:12px">`;
+  h+=`<button class="cb-big bet-b" onclick="submitCbetDecision(true)">C-BET</button>`;
+  h+=`<button class="cb-big chk-b" onclick="submitCbetDecision(false)">CHECK</button>`;
+  h+=`</div>`;
+  el.innerHTML=h;
+}
+
+function submitCbetDecision(bet){
+  CB._userBetDecision=bet;
+  const sc=CB.currentScenario;
+  const isCorrect=bet===sc.correctBet;
+  playSound(isCorrect?'correct':'wrong');
+
+  if(bet){
+    CB.phase='sizing_quiz';
+  }else{
+    CB.phase='show_result';
+  }
+  rCbet();
+}
+
+function renderCbetSizingQuiz(el){
+  const sc=CB.currentScenario;
+  const betCorrect=CB._userBetDecision===sc.correctBet;
+  const texCorrect=CB._userTexture===sc.textureId;
+
+  let h=renderCbetProgress();
+  h+=renderCbetContext(sc);
+  h+=renderCbetCards(sc);
+
+  // Previous results summary
+  const correctTex=BOARD_TEXTURES.find(b=>b.id===sc.textureId);
+  h+=`<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">`;
+  h+=`<span style="font-size:11px;padding:4px 8px;border-radius:6px;${texCorrect?'background:var(--greenBg);color:var(--green)':'background:var(--redBg);color:var(--red)'}">${texCorrect?'\u2713':'\u2717'} ${correctTex.label}</span>`;
+  h+=`<span style="font-size:11px;padding:4px 8px;border-radius:6px;${betCorrect?'background:var(--greenBg);color:var(--green)':'background:var(--redBg);color:var(--red)'}">${betCorrect?'\u2713':'\u2717'} C-BET</span>`;
+  h+=`</div>`;
+
+  h+=`<div class="step-ind">Step 3: Sizing</div>`;
+  h+=`<p style="font-size:13px;color:var(--text2);margin-bottom:12px">ベットサイズを選択してください：</p>`;
+
+  const pot=sc.action.potBB;
+  h+=`<div class="sz-grid" id="szGrid">`;
+  SIZING_OPTIONS.forEach(sz=>{
+    const chips=Math.round(pot*SIZING_MULT[sz]*10)/10;
+    h+=`<button class="sz-btn" data-sz="${sz}" onclick="cbetSelectSizing(this)">`;
+    h+=`<div class="sz-frac">${SIZING_LABELS[sz]}</div>`;
+    h+=`<div class="sz-chips">${chips}bb</div>`;
+    h+=`</button>`;
+  });
+  h+=`</div>`;
+  h+=`<div style="display:flex;gap:8px;margin-top:16px"><button class="btn btn-p" onclick="submitCbetSizing()">Submit</button></div>`;
+  el.innerHTML=h;
+}
+
+function cbetSelectSizing(el){
+  document.querySelectorAll('#szGrid .sz-btn').forEach(b=>b.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+function submitCbetSizing(){
+  const sel=document.querySelector('#szGrid .sz-btn.selected');
+  if(!sel){alert('サイジングを選択してください');return;}
+  CB._userSizing=sel.dataset.sz;
+  CB.phase='show_result';
+  const sc=CB.currentScenario;
+  const isCorrect=CB._userSizing===sc.correctSizing;
+  playSound(isCorrect?'correct':'wrong');
+  rCbet();
+}
+
+function renderCbetResult(el){
+  const sc=CB.currentScenario;
+  const texCorrect=CB._userTexture===sc.textureId;
+  const betCorrect=CB._userBetDecision===sc.correctBet;
+  const correctTex=BOARD_TEXTURES.find(b=>b.id===sc.textureId);
+  const userTex=BOARD_TEXTURES.find(b=>b.id===CB._userTexture);
+
+  const score=scoreCbetQuestion(CB._userTexture,sc.textureId,CB._userBetDecision,sc.correctBet,CB._userSizing,sc.correctSizing);
+
+  let h=renderCbetProgress();
+  h+=renderCbetContext(sc);
+  h+=renderCbetCards(sc);
+
+  // Score badge
+  const scorePct=Math.round(score.earned/score.maxPts*100);
+  const scoreClr=scorePct>=80?'var(--green)':scorePct>=40?'var(--gold)':'var(--red)';
+  h+=`<div style="text-align:center;margin:12px 0"><span style="font-family:'JetBrains Mono',monospace;font-size:24px;font-weight:800;color:${scoreClr}">${score.earned}/${score.maxPts}</span><span style="font-size:12px;color:var(--text3);margin-left:6px">pts</span></div>`;
+
+  // 1. Texture result
+  h+=`<div class="result-box ${texCorrect?'correct-box':'wrong-box'}">`;
+  h+=`<div class="result-title">1. Board Texture (1pt)</div>`;
+  h+=`<div class="result-detail">`;
+  h+=`Your: <strong>${userTex.label}</strong> | Correct: <strong>${correctTex.label}</strong>`;
+  if(texCorrect)h+=` <span style="color:var(--green)">\u2713 +1</span>`;
+  else h+=` <span style="color:var(--red)">\u2717 +0</span>`;
+  h+=`</div></div>`;
+
+  // 2. Bet/Check result
+  h+=`<div class="result-box ${betCorrect?'correct-box':'wrong-box'}">`;
+  h+=`<div class="result-title">2. C-bet Decision (2pts)</div>`;
+  h+=`<div class="result-detail">`;
+  h+=`Your: <strong>${CB._userBetDecision?'C-BET':'CHECK'}</strong> | Correct: <strong>${sc.correctBet?'C-BET':'CHECK'}</strong>`;
+  if(betCorrect)h+=` <span style="color:var(--green)">\u2713 +2</span>`;
+  else h+=` <span style="color:var(--red)">\u2717 +0</span>`;
+  h+=`</div></div>`;
+
+  // 3. Sizing result
+  if(sc.correctBet){
+    const szCorrect=CB._userSizing===sc.correctSizing;
+    const szAdjacent=!szCorrect&&CB._userSizing&&isAdjacentSz(CB._userSizing,sc.correctSizing);
+    const szPts=szCorrect?2:szAdjacent?1:0;
+    const szBox=szCorrect?'correct-box':szAdjacent?'correct-box':'wrong-box';
+    h+=`<div class="result-box ${szBox}">`;
+    h+=`<div class="result-title">3. Sizing (2pts)</div>`;
+    h+=`<div class="result-detail">`;
+    if(CB._userBetDecision){
+      h+=`Your: <strong>${CB._userSizing||'N/A'}</strong> | Correct: <strong>${sc.correctSizing}</strong>`;
+      if(szCorrect)h+=` <span style="color:var(--green)">\u2713 +2</span>`;
+      else if(szAdjacent)h+=` <span style="color:var(--gold)">\u2248 +1 (隣接)</span>`;
+      else h+=` <span style="color:var(--red)">\u2717 +0</span>`;
+    }else{
+      h+=`<span style="color:var(--text3)">C-BETを選択しなかったためスキップ</span>`;
+    }
+    h+=`</div></div>`;
+  }else if(!CB._userBetDecision){
+    h+=`<div class="result-box correct-box">`;
+    h+=`<div class="result-title">3. Sizing (2pts)</div>`;
+    h+=`<div class="result-detail"><span style="color:var(--green)">\u2713 +2</span> CHECK正解 — サイジング自動付与</div>`;
+    h+=`</div>`;
+  }else{
+    h+=`<div class="result-box wrong-box">`;
+    h+=`<div class="result-title">3. Sizing (2pts)</div>`;
+    h+=`<div class="result-detail"><span style="color:var(--red)">\u2717 +0</span> 正解はCHECK — ベットは不要</div>`;
+    h+=`</div>`;
+  }
+
+  // Explanation
+  h+=`<div style="margin-top:12px;padding:14px;background:var(--bg2);border-radius:10px;border-left:3px solid var(--accent)">`;
+  h+=`<div style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;margin-bottom:6px">Strategy Explanation</div>`;
+  h+=`<div style="font-size:13px;color:var(--text2);line-height:1.6">${sc.explanation}</div>`;
+  h+=`</div>`;
+
+  // Board analysis
+  h+=`<div class="ba-grid">`;
+  h+=`<div class="ba-item"><div class="ba-l">Texture</div><div class="ba-v">${correctTex.label}</div></div>`;
+  h+=`<div class="ba-item"><div class="ba-l">Wetness</div><div class="ba-v">${sc.wetness}/10</div></div>`;
+  h+=`<div class="ba-item"><div class="ba-l">Hand Strength</div><div class="ba-v" style="text-transform:capitalize">${sc.handStrength}</div></div>`;
+  h+=`<div class="ba-item"><div class="ba-l">Position</div><div class="ba-v">${sc.action.heroIP?'In Position':'Out of Position'}</div></div>`;
+  h+=`</div>`;
+
+  // Store result
+  const res={
+    hero:sc.hero,flop:sc.flop,action:sc.action.id,
+    correctTexture:sc.textureId,userTexture:CB._userTexture,
+    correctBet:sc.correctBet,userBet:CB._userBetDecision,
+    correctSizing:sc.correctSizing,userSizing:CB._userSizing,
+    earned:score.earned,maxPts:score.maxPts,explanation:sc.explanation,
+    handStrength:sc.handStrength
+  };
+
+  h+=`<div style="display:flex;gap:8px;margin-top:20px;justify-content:center">`;
+  h+=`<button class="btn btn-p" onclick="nextCbetHand()">Next Hand</button>`;
+  h+=`</div>`;
+  el.innerHTML=h;
+
+  // Save result if not already saved for this index
+  if(CB.results.length<=CB.currentIdx){
+    CB.results.push(res);
+  }
+}
+
+function isAdjacentSz(a,b){
+  const ai=SIZING_OPTIONS.indexOf(a),bi=SIZING_OPTIONS.indexOf(b);
+  return ai>=0&&bi>=0&&Math.abs(ai-bi)<=1;
+}
+
+function nextCbetHand(){
+  CB.currentIdx++;
+  CB._userTexture=null;
+  CB._userBetDecision=null;
+  CB._userSizing=null;
+
+  if(CB.currentIdx>=CB.scenarios.length){
+    CB.phase='set_complete';
+    completeCbetSet();
+    playSound('complete');
+  }else{
+    CB.currentScenario=CB.scenarios[CB.currentIdx];
+    CB.phase='show_scenario';
+    playSound('deal');
+  }
+  rCbet();
+}
+
+function completeCbetSet(){
+  const totalEarned=CB.results.reduce((s,r)=>s+r.earned,0);
+  const totalMax=CB.results.reduce((s,r)=>s+r.maxPts,0);
+  const pct=totalMax>0?Math.round(totalEarned/totalMax*100):0;
+  const elapsed=Math.round((Date.now()-CB.startTime)/1000);
+
+  const setRecord={
+    id:Date.now(),date:td(),handsCount:CB.scenarios.length,
+    score:pct,earned:totalEarned,maxPts:totalMax,elapsed,
+    results:CB.results.map(r=>({
+      hero:r.hero,flop:r.flop,action:r.action,
+      correctTexture:r.correctTexture,userTexture:r.userTexture,
+      correctBet:r.correctBet,userBet:r.userBet,
+      correctSizing:r.correctSizing,userSizing:r.userSizing,
+      earned:r.earned,maxPts:r.maxPts,explanation:r.explanation,
+      handStrength:r.handStrength
+    }))
+  };
+
+  D.cbetSets.push(setRecord);
+
+  const key=td();
+  if(!D.dailyLog[key])D.dailyLog[key]={sets:0,questions:0,correct:0};
+  if(!D.dailyLog[key].cbetSets)D.dailyLog[key].cbetSets=0;
+  if(!D.dailyLog[key].cbetQuestions)D.dailyLog[key].cbetQuestions=0;
+  if(!D.dailyLog[key].cbetCorrect)D.dailyLog[key].cbetCorrect=0;
+  D.dailyLog[key].cbetSets++;
+  D.dailyLog[key].cbetQuestions+=totalMax;
+  D.dailyLog[key].cbetCorrect+=totalEarned;
+
+  save();
+  if(pct>=80)setTimeout(fireConfetti,300);
+}
+
+function renderCbetSetComplete(el){
+  const totalEarned=CB.results.reduce((s,r)=>s+r.earned,0);
+  const totalMax=CB.results.reduce((s,r)=>s+r.maxPts,0);
+  const pct=totalMax>0?Math.round(totalEarned/totalMax*100):0;
+  const elapsed=Math.round((Date.now()-CB.startTime)/1000);
+  const mins=Math.floor(elapsed/60),secs=elapsed%60;
+
+  let cls='ok';
+  if(pct>=80)cls='great';else if(pct<50)cls='poor';
+
+  let h=`<div class="set-summary">`;
+  h+=`<div style="font-size:48px;margin-bottom:8px">${pct>=80?'\uD83C\uDFC6':pct>=50?'\uD83D\uDCAA':'\uD83D\uDCDA'}</div>`;
+  h+=`<div style="font-size:18px;font-weight:700;margin-bottom:4px">C-BET Set Complete!</div>`;
+  h+=`<div class="set-score ${cls}">${pct}%</div>`;
+  h+=`<div style="font-size:13px;color:var(--text2);margin-bottom:4px">${totalEarned} / ${totalMax} pts</div>`;
+  h+=`<div style="font-size:12px;color:var(--text3);margin-bottom:20px">Time: ${mins}m ${String(secs).padStart(2,'0')}s</div>`;
+
+  h+=`<div style="text-align:left;margin-top:16px">`;
+  CB.results.forEach((r,i)=>{
+    const rpct=r.maxPts>0?Math.round(r.earned/r.maxPts*100):0;
+    const tex=BOARD_TEXTURES.find(b=>b.id===r.correctTexture);
+    h+=`<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)">`;
+    h+=`<span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text4);min-width:30px">#${i+1}</span>`;
+    h+=`<span style="display:flex;gap:2px">${r.hero.map(c=>cardHTML(c,'out-card')).join('')}</span>`;
+    h+=`<span style="display:flex;gap:2px">${r.flop.map(c=>cardHTML(c,'out-card')).join('')}</span>`;
+    h+=`<span style="flex:1;font-size:11px;color:var(--text3)">${tex?tex.label:''} / ${r.correctBet?'Bet '+r.correctSizing:'Check'}</span>`;
+    h+=`<span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:${rpct>=80?'var(--green)':rpct>=40?'var(--gold)':'var(--red)'}">${r.earned}/${r.maxPts}</span>`;
+    h+=`</div>`;
+  });
+  h+=`</div>`;
+
+  h+=`<div style="display:flex;gap:8px;margin-top:24px;justify-content:center">`;
+  h+=`<button class="btn btn-p btn-lg" onclick="startCbetSet()">New Set</button>`;
+  h+=`<button class="btn btn-s" onclick="CB.active=false;rCbet()">Back to Menu</button>`;
+  h+=`</div>`;
+  h+=`</div>`;
+  el.innerHTML=h;
+}
+
+/* ============================================================
    LIST TAB
    ============================================================ */
 let listSort='date';
+let listFilter='all'; // all, equity, cbet
 function rList(){
   const el=document.getElementById('tList');
-  if(D.sets.length===0){
-    el.innerHTML=`<div class="empty"><div class="empty-icon">\uD83D\uDCCB</div><div class="empty-text">No completed sets yet</div><p style="font-size:12px;color:var(--text4)">Complete a set in the Tasks tab to see your history here</p></div>`;
+  const hasEquity=D.sets.length>0;
+  const hasCbet=D.cbetSets.length>0;
+  if(!hasEquity&&!hasCbet){
+    el.innerHTML=`<div class="empty"><div class="empty-icon">\uD83D\uDCCB</div><div class="empty-text">No completed sets yet</div><p style="font-size:12px;color:var(--text4)">Complete a set in the Tasks or C-BET tab to see your history here</p></div>`;
     return;
   }
 
-  let sets=[...D.sets];
-  if(listSort==='score')sets.sort((a,b)=>b.score-a.score);
-  else sets.sort((a,b)=>b.id-a.id);
+  // Build unified list
+  let items=[];
+  if(listFilter==='all'||listFilter==='equity'){
+    D.sets.forEach(s=>items.push({...s,_type:'equity'}));
+  }
+  if(listFilter==='all'||listFilter==='cbet'){
+    D.cbetSets.forEach(s=>items.push({...s,_type:'cbet'}));
+  }
+  if(listSort==='score')items.sort((a,b)=>b.score-a.score);
+  else items.sort((a,b)=>b.id-a.id);
 
-  let h=`<div class="fb"><select onchange="listSort=this.value;rList()">`;
-  h+=`<option value="date"${listSort==='date'?' selected':''}>Sort: Date (newest)</option>`;
-  h+=`<option value="score"${listSort==='score'?' selected':''}>Sort: Score (highest)</option>`;
-  h+=`</select><span style="font-size:11px;color:var(--text3);margin-left:auto">${sets.length} sets</span></div>`;
+  let h=`<div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap">`;
+  h+=`<select onchange="listFilter=this.value;rList()" style="padding:6px 10px;border:1px solid var(--border2);border-radius:6px;font-size:12px;background:var(--bg2);color:var(--text);font-weight:500">`;
+  h+=`<option value="all"${listFilter==='all'?' selected':''}>All</option>`;
+  h+=`<option value="equity"${listFilter==='equity'?' selected':''}>Equity</option>`;
+  h+=`<option value="cbet"${listFilter==='cbet'?' selected':''}>C-BET</option>`;
+  h+=`</select>`;
+  h+=`<select onchange="listSort=this.value;rList()" style="padding:6px 10px;border:1px solid var(--border2);border-radius:6px;font-size:12px;background:var(--bg2);color:var(--text);font-weight:500">`;
+  h+=`<option value="date"${listSort==='date'?' selected':''}>Date (newest)</option>`;
+  h+=`<option value="score"${listSort==='score'?' selected':''}>Score (highest)</option>`;
+  h+=`</select>`;
+  h+=`<span style="font-size:11px;color:var(--text3);margin-left:auto">${items.length} sets</span></div>`;
 
-  sets.forEach(s=>{
+  items.forEach(s=>{
     const mins=Math.floor(s.elapsed/60);
     const secs=s.elapsed%60;
     const scoreClr=s.score>=80?'var(--green)':s.score>=50?'var(--gold)':'var(--red)';
+    const typeBadge=s._type==='cbet'?`<span class="cbet-bdg bet3" style="font-size:9px;padding:2px 5px">C-BET</span>`:`<span class="cbet-bdg srp" style="font-size:9px;padding:2px 5px">EQUITY</span>`;
     h+=`<div class="li" onclick="this.classList.toggle('expanded')" data-set="${s.id}">`;
     h+=`<div class="li-top">`;
-    h+=`<span style="font-size:14px;font-weight:700;color:${scoreClr};font-family:'JetBrains Mono',monospace">${s.score}%</span>`;
+    h+=`<span style="display:flex;align-items:center;gap:6px"><span style="font-size:14px;font-weight:700;color:${scoreClr};font-family:'JetBrains Mono',monospace">${s.score}%</span>${typeBadge}</span>`;
     h+=`<span style="font-size:11px;color:var(--text3)">${s.date}</span>`;
     h+=`</div>`;
     h+=`<div class="li-bot">`;
-    h+=`<span style="font-size:11px;color:var(--text4)">${s.handsCount} hands \u2022 ${s.correct}/${s.total} correct</span>`;
+    if(s._type==='cbet'){
+      h+=`<span style="font-size:11px;color:var(--text4)">${s.handsCount} hands \u2022 ${s.earned}/${s.maxPts} pts</span>`;
+    }else{
+      h+=`<span style="font-size:11px;color:var(--text4)">${s.handsCount} hands \u2022 ${s.correct}/${s.total} correct</span>`;
+    }
     h+=`<span style="font-size:11px;color:var(--text4);font-family:'JetBrains Mono',monospace">${mins}m${String(secs).padStart(2,'0')}s</span>`;
     h+=`</div>`;
 
-    // Expanded detail
     h+=`<div class="li-expand">`;
     if(s.results){
       s.results.forEach((r,i)=>{
-        const hpct=r.totalCount>0?Math.round(r.correctCount/r.totalCount*100):0;
         h+=`<div class="hand-review">`;
         h+=`<div class="hand-review-cards">`;
         h+=`<span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text4)">#${i+1}</span>`;
         r.hero.map(c=>cardHTML(c,'out-card')).forEach(c=>{h+=c;});
         h+=`<span style="color:var(--text4);font-size:10px">|</span>`;
         r.flop.map(c=>cardHTML(c,'out-card')).forEach(c=>{h+=c;});
-        h+=cardHTML(r.turn,'out-card');
+        if(s._type==='equity'&&r.turn)h+=cardHTML(r.turn,'out-card');
         h+=`</div>`;
         h+=`<div style="display:flex;justify-content:space-between;align-items:center">`;
-        h+=`<span style="font-size:11px;color:var(--text3)">${r.flopDraws.map(d=>`${d.label}(${d.outs})`).join(', ')||'No draws'}</span>`;
-        h+=`<span style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;color:${hpct>=80?'var(--green)':hpct>=50?'var(--gold)':'var(--red)'}">${hpct}%</span>`;
+        if(s._type==='cbet'){
+          const tex=BOARD_TEXTURES.find(b=>b.id===r.correctTexture);
+          h+=`<span style="font-size:11px;color:var(--text3)">${tex?tex.label:''} / ${r.correctBet?'Bet '+r.correctSizing:'Check'}</span>`;
+          h+=`<span style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;color:${r.earned>=4?'var(--green)':r.earned>=2?'var(--gold)':'var(--red)'}">${r.earned}/${r.maxPts}</span>`;
+        }else{
+          const hpct=r.totalCount>0?Math.round(r.correctCount/r.totalCount*100):0;
+          h+=`<span style="font-size:11px;color:var(--text3)">${(r.flopDraws||[]).map(d=>`${d.label}(${d.outs})`).join(', ')||'No draws'}</span>`;
+          h+=`<span style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;color:${hpct>=80?'var(--green)':hpct>=50?'var(--gold)':'var(--red)'}">${hpct}%</span>`;
+        }
         h+=`</div>`;
         h+=`</div>`;
       });
@@ -1698,6 +2519,68 @@ function rStats(){
     h+=`</div>`;
   });
   h+=`</div></div></div>`;
+
+  // --- G. C-BET Stats ---
+  if(D.cbetSets.length>0){
+    const cbTotal=D.cbetSets.length;
+    const cbEarned=D.cbetSets.reduce((s,x)=>s+(x.earned||0),0);
+    const cbMax=D.cbetSets.reduce((s,x)=>s+(x.maxPts||0),0);
+    const cbPct=cbMax>0?Math.round(cbEarned/cbMax*100):0;
+
+    h+=`<div class="card"><div class="card-h"><span class="card-title">C-BET Trainer</span><span style="font-size:10px;color:var(--text3)">${cbTotal} sets</span></div><div class="card-body">`;
+
+    // C-BET accuracy ring
+    const cbR=40,cbCircC=2*Math.PI*cbR;
+    const cbDash=cbCircC*(1-cbPct/100);
+    h+=`<div style="display:flex;align-items:center;gap:24px;flex-wrap:wrap">`;
+    h+=`<div style="position:relative;width:100px;height:100px">`;
+    h+=`<svg viewBox="0 0 100 100" width="100" height="100"><circle cx="50" cy="50" r="${cbR}" fill="none" stroke="var(--bg4)" stroke-width="8"/>`;
+    h+=`<circle class="mastery-ring" cx="50" cy="50" r="${cbR}" fill="none" stroke="var(--accent)" stroke-width="8" stroke-linecap="round" transform="rotate(-90 50 50)" stroke-dasharray="${cbCircC}" stroke-dashoffset="${cbCircC}" data-target="${cbDash}"/></svg>`;
+    h+=`<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center"><span style="font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:800;color:var(--accent)" data-anim="${cbPct}" data-delay="600" data-suffix="%">0</span></div>`;
+    h+=`</div>`;
+
+    // Texture accuracy bars
+    const texStats={};
+    BOARD_TEXTURES.forEach(bt=>{texStats[bt.id]={correct:0,total:0};});
+    D.cbetSets.forEach(s=>{
+      if(!s.results)return;
+      s.results.forEach(r=>{
+        if(r.correctTexture){
+          texStats[r.correctTexture].total++;
+          if(r.userTexture===r.correctTexture)texStats[r.correctTexture].correct++;
+        }
+      });
+    });
+
+    h+=`<div style="flex:1;min-width:200px">`;
+    BOARD_TEXTURES.forEach(bt=>{
+      const ts=texStats[bt.id];
+      const tpct=ts.total>0?Math.round(ts.correct/ts.total*100):0;
+      const clr=tpct>=80?'var(--green)':tpct>=50?'var(--gold)':'var(--red)';
+      h+=`<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">`;
+      h+=`<span style="font-size:11px;font-weight:600;min-width:70px;color:var(--text2)">${bt.label}</span>`;
+      h+=`<div style="flex:1;height:8px;background:var(--bg4);border-radius:4px;overflow:hidden">`;
+      h+=`<div style="height:100%;width:${tpct}%;background:${clr};border-radius:4px;transition:width .6s"></div>`;
+      h+=`</div>`;
+      h+=`<span style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;color:${clr};min-width:35px;text-align:right">${tpct}%</span>`;
+      h+=`</div>`;
+    });
+    h+=`</div></div>`;
+
+    // Bet/Check accuracy
+    let betCorrect=0,betTotal=0;
+    D.cbetSets.forEach(s=>{
+      if(!s.results)return;
+      s.results.forEach(r=>{
+        betTotal++;
+        if(r.userBet===r.correctBet)betCorrect++;
+      });
+    });
+    const betPct=betTotal>0?Math.round(betCorrect/betTotal*100):0;
+    h+=`<div style="margin-top:12px;font-size:12px;color:var(--text2)">Bet/Check正答率: <strong style="color:var(--accent)">${betPct}%</strong> (${betCorrect}/${betTotal})</div>`;
+
+    h+=`</div></div>`;
+  }
 
   el.innerHTML=h;
 
@@ -1888,6 +2771,9 @@ function rGuide(){
     {term:'インプライドオッズ',def:'ヒット後に相手から追加で取れるチップを加味したオッズ。ポットオッズが足りなくてもコールできる場合がある。'},
     {term:'OESD',def:'Open-Ended Straight Draw。4枚連続で両端の2種類のカードでストレート完成（8アウツ）。'},
     {term:'ガットショット',def:'Gutshot Straight Draw。中抜けストレートドロー。1種類のカードでのみ完成（4アウツ）。'},
+    {term:'C-bet (コンティニュエーションベット)',def:'プリフロップでレイズした人がフロップでもベットすること。レンジアドバンテージを活かすプレイ。'},
+    {term:'ボードテクスチャ',def:'フロップの特性。Dry（ドロー少）/ Semi-wet / Wet（ドロー多）/ Monotone（3枚同スート）/ Paired（ペアあり）の5種に分類。'},
+    {term:'レンジアドバンテージ',def:'プリフロップレイザーがボードに対して持つハンドレンジの優位性。A/K高ボードではレイザーが有利。'},
   ];
   terms.forEach(t=>{
     h+=`<div style="margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--border)">`;
@@ -1895,6 +2781,70 @@ function rGuide(){
     h+=`<div style="font-size:12px;color:var(--text2);margin-top:2px">${t.def}</div>`;
     h+=`</div>`;
   });
+  h+=`</div></div>`;
+
+  // C-BET Strategy Reference
+  h+=`<div class="card"><div class="card-h"><span class="card-title">C-bet戦略ガイド</span></div><div class="card-body">`;
+  h+=`<p style="font-size:13px;color:var(--text2);margin-bottom:12px">ボードテクスチャ別のC-bet戦略。</p>`;
+  h+=`<div style="overflow-x:auto">`;
+  h+=`<table style="width:100%;border-collapse:collapse;font-size:12px">`;
+  h+=`<thead><tr style="border-bottom:2px solid var(--border);text-align:left">`;
+  h+=`<th style="padding:8px 6px;color:var(--text3);font-weight:700">テクスチャ</th>`;
+  h+=`<th style="padding:8px 6px;color:var(--text3);font-weight:700;text-align:center">C-bet頻度</th>`;
+  h+=`<th style="padding:8px 6px;color:var(--text3);font-weight:700;text-align:center">推奨サイズ</th>`;
+  h+=`<th style="padding:8px 6px;color:var(--text3);font-weight:700">特徴</th>`;
+  h+=`</tr></thead><tbody>`;
+  const cbetGuide=[
+    {tex:'Dry',freq:'高 (70%+)',size:'1/3 pot',note:'レインボー、非コネクト。相手のドローが少ないため小さく頻繁にベット'},
+    {tex:'Semi-wet',freq:'中 (50-60%)',size:'1/2 pot',note:'ツートーン or やや接続。ハンド強度に応じて選択的にベット'},
+    {tex:'Wet',freq:'低 (30-40%)',size:'2/3-3/4 pot',note:'コネクト＋ツートーン。強いハンドとドローのみベット、大きいサイズ'},
+    {tex:'Monotone',freq:'低 (25-35%)',size:'1/3-1/2 pot',note:'3枚同スート。フラッシュブロッカー持ちでベット、それ以外はチェック'},
+    {tex:'Paired',freq:'高 (60-70%)',size:'1/3 pot',note:'ボードペア。レンジアドバンテージが大きいため広くC-bet'},
+  ];
+  cbetGuide.forEach((g,i)=>{
+    const bg=i%2===0?'var(--bg2)':'transparent';
+    h+=`<tr style="border-bottom:1px solid var(--border);background:${bg}">`;
+    h+=`<td style="padding:8px 6px;font-weight:600;color:var(--text)">${g.tex}</td>`;
+    h+=`<td style="padding:8px 6px;text-align:center;font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--accent)">${g.freq}</td>`;
+    h+=`<td style="padding:8px 6px;text-align:center;font-family:'JetBrains Mono',monospace;color:var(--text)">${g.size}</td>`;
+    h+=`<td style="padding:8px 6px;color:var(--text3);font-size:11px">${g.note}</td>`;
+    h+=`</tr>`;
+  });
+  h+=`</tbody></table></div>`;
+  h+=`</div></div>`;
+
+  // Sizing Logic
+  h+=`<div class="card"><div class="card-h"><span class="card-title">サイジングロジック</span></div><div class="card-body">`;
+  h+=`<div style="display:flex;flex-direction:column;gap:8px">`;
+  const szSteps=[
+    {n:'1',color:'var(--green)',title:'Dry → 小さく高頻度（1/3 pot）',desc:'相手のドローが少ない＝プロテクション不要。小さいベットでfold equityを最大化'},
+    {n:'2',color:'var(--blue)',title:'Wet → 大きく低頻度（2/3-3/4 pot）',desc:'ドローが多い＝プロテクション必要。大きいベットでドローに不正確なオッズを与える'},
+    {n:'3',color:'var(--gold)',title:'3BETポット → 小さく広く（1/3 pot）',desc:'SPRが低い＝レンジアドバンテージ大。ほぼ全レンジで小さくベット'},
+    {n:'4',color:'var(--red)',title:'マルチウェイ → 強いハンドのみ（2/3 pot）',desc:'複数の相手＝ブラフ成功率が低い。バリューとセミブラフのみベット'},
+  ];
+  szSteps.forEach(s=>{
+    h+=`<div style="display:flex;gap:12px;align-items:flex-start;padding:10px 12px;background:var(--bg2);border-radius:8px;border-left:3px solid ${s.color}">`;
+    h+=`<div style="width:24px;height:24px;border-radius:50%;background:${s.color};color:white;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0">${s.n}</div>`;
+    h+=`<div><div style="font-size:13px;font-weight:700;color:var(--text)">${s.title}</div>`;
+    h+=`<div style="font-size:11px;color:var(--text3);margin-top:2px">${s.desc}</div></div>`;
+    h+=`</div>`;
+  });
+  h+=`</div></div></div>`;
+
+  // Range Advantage
+  h+=`<div class="card"><div class="card-h"><span class="card-title">レンジアドバンテージ</span></div><div class="card-body">`;
+  h+=`<div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:12px">`;
+  h+=`<div style="flex:1;min-width:200px;padding:12px;background:var(--greenBg);border-radius:8px;border:1px solid var(--green)">`;
+  h+=`<div style="font-size:11px;font-weight:700;color:var(--green);text-transform:uppercase;margin-bottom:6px">レイザー有利なボード</div>`;
+  h+=`<div style="font-size:13px;color:var(--text)">A-x-x、K-x-x、Q-x-x</div>`;
+  h+=`<div style="font-size:11px;color:var(--text3);margin-top:4px">ハイカードボード。プリフロップレイザーのレンジにA/K/Qが多い</div>`;
+  h+=`</div>`;
+  h+=`<div style="flex:1;min-width:200px;padding:12px;background:var(--redBg);border-radius:8px;border:1px solid var(--red)">`;
+  h+=`<div style="font-size:11px;font-weight:700;color:var(--red);text-transform:uppercase;margin-bottom:6px">コーラー有利なボード</div>`;
+  h+=`<div style="font-size:13px;color:var(--text)">8-7-6、5-4-3 など</div>`;
+  h+=`<div style="font-size:11px;color:var(--text3);margin-top:4px">ロウ＆コネクトボード。BBのワイドレンジがヒットしやすい</div>`;
+  h+=`</div>`;
+  h+=`</div>`;
   h+=`</div></div>`;
 
   el.innerHTML=h;
@@ -1907,6 +2857,7 @@ function rGuide(){
   load();
   initTheme();
   resetGame();
+  resetCbet();
   const savedTab=localStorage.getItem(SK.TAB);
   if(savedTab && TABS.some(t=>t.id===savedTab))curTab=savedTab;
   initTabs();
