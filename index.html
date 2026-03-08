@@ -1528,22 +1528,22 @@ const BOARD_TEXTURES = [
 const CBET_SCENARIOS = [
   {id:'srp_btn_bb',  label:'Hero(BTN) open → BB call',       heroPos:'BTN', type:'SRP',  heroIP:true,  potBB:6.5},
   {id:'srp_co_bb',   label:'Hero(CO) open → BB call',        heroPos:'CO',  type:'SRP',  heroIP:true,  potBB:6.5},
-  {id:'srp_mp_bb',   label:'Hero(MP) open → BB call',        heroPos:'MP',  type:'SRP',  heroIP:true,  potBB:6.5},
-  {id:'srp_ep_bb',   label:'Hero(EP) open → BB call',        heroPos:'EP',  type:'SRP',  heroIP:true,  potBB:6.5},
+  {id:'srp_hj_bb',   label:'Hero(HJ) open → BB call',        heroPos:'HJ',  type:'SRP',  heroIP:true,  potBB:6.5},
+  {id:'srp_utg_bb',  label:'Hero(UTG) open → BB call',       heroPos:'UTG', type:'SRP',  heroIP:true,  potBB:6.5},
   {id:'srp_sb_bb',   label:'Hero(SB) open → BB call',        heroPos:'SB',  type:'SRP',  heroIP:false, potBB:6},
   {id:'srp_co_btn',  label:'Hero(CO) open → BTN call',       heroPos:'CO',  type:'SRP',  heroIP:false, potBB:6.5},
   {id:'3bet_btn_co', label:'CO open → Hero(BTN) 3bet → CO call', heroPos:'BTN', type:'3BET', heroIP:true,  potBB:22},
   {id:'3bet_bb_btn', label:'BTN open → Hero(BB) 3bet → BTN call', heroPos:'BB',  type:'3BET', heroIP:false, potBB:22},
-  {id:'mw_ep',       label:'Hero(EP) open → MP+BB call',     heroPos:'EP',  type:'MW',   heroIP:true,  potBB:10, multiway:true},
+  {id:'mw_utg',      label:'Hero(UTG) open → HJ+BB call',    heroPos:'UTG', type:'MW',   heroIP:true,  potBB:10, multiway:true},
 ];
 
 const OPEN_RANGES = {
-  EP: ['AA','KK','QQ','JJ','TT','99','AKs','AQs','AJs','ATs','AKo','AQo','KQs'],
-  MP: ['AA','KK','QQ','JJ','TT','99','88','AKs','AQs','AJs','ATs','A9s','AKo','AQo','AJo','KQs','KJs','QJs','KQo'],
-  CO: ['AA','KK','QQ','JJ','TT','99','88','77','66','55','AKs','AQs','AJs','ATs','A9s','A8s','A7s','A6s','A5s','AKo','AQo','AJo','ATo','KQs','KJs','KTs','K9s','QJs','QTs','JTs','T9s','98s','87s','KQo','KJo','QJo'],
+  UTG: ['AA','KK','QQ','JJ','TT','99','AKs','AQs','AJs','ATs','AKo','AQo','KQs'],
+  HJ:  ['AA','KK','QQ','JJ','TT','99','88','AKs','AQs','AJs','ATs','A9s','AKo','AQo','AJo','KQs','KJs','QJs','KQo'],
+  CO:  ['AA','KK','QQ','JJ','TT','99','88','77','66','55','AKs','AQs','AJs','ATs','A9s','A8s','A7s','A6s','A5s','AKo','AQo','AJo','ATo','KQs','KJs','KTs','K9s','QJs','QTs','JTs','T9s','98s','87s','KQo','KJo','QJo'],
   BTN: ['AA','KK','QQ','JJ','TT','99','88','77','66','55','44','AKs','AQs','AJs','ATs','A9s','A8s','A7s','A6s','A5s','A4s','A3s','A2s','AKo','AQo','AJo','ATo','A9o','KQs','KJs','KTs','K9s','K8s','QJs','QTs','Q9s','JTs','J9s','T9s','T8s','98s','97s','87s','76s','65s','54s','KQo','KJo','KTo','QJo','QTo','JTo'],
-  SB: ['AA','KK','QQ','JJ','TT','99','88','77','AKs','AQs','AJs','ATs','A9s','AKo','AQo','AJo','KQs','KJs','QJs','KQo'],
-  BB: ['AA','KK','QQ','JJ','TT','99','88','AKs','AQs','AJs','ATs','AKo','AQo','KQs','KJs','QJs']
+  SB:  ['AA','KK','QQ','JJ','TT','99','88','77','AKs','AQs','AJs','ATs','A9s','AKo','AQo','AJo','KQs','KJs','QJs','KQo'],
+  BB:  ['AA','KK','QQ','JJ','TT','99','88','AKs','AQs','AJs','ATs','AKo','AQo','KQs','KJs','QJs']
 };
 
 const SIZING_OPTIONS = ['1/4','1/3','1/2','2/3','3/4','pot'];
