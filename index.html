@@ -1727,8 +1727,26 @@ function determineCbetAnswer(hero, flop, textureId, strength, action){
       if(rangeAdv)return{bet:true,sizing:'1/3',explanation:'3BETポット + ハイボード: レンジアドバンテージで広くC-bet'};
       return{bet:false,sizing:null,explanation:'3BETポット + ロウボード: エアハンドはチェック'};
     }
-    if(strength==='monster'||strength==='strong'||strength==='draw')return{bet:true,sizing:'1/2',explanation:'3BETポット + Wet: バリュー/ドローでベット'};
-    return{bet:false,sizing:null,explanation:'3BETポット + Wet: 弱いハンドは選択的にチェック'};
+    // Monotone in 3BET pot — special handling
+    if(textureId==='monotone'){
+      const bs={};flop.forEach(c=>{bs[c.s]=(bs[c.s]||0)+1;});
+      const ms=Object.keys(bs).find(s=>bs[s]===3);
+      const hasBlocker=hero.some(c=>c.s===ms);
+      if(strength==='monster')return{bet:true,sizing:'1/3',explanation:'3BETポット + Monotone: モンスターハンドでも小さくベット。大きいベットにコールするのはフラッシュ完成/ドローのみ。小さいサイズでバリューを取りつつポットコントロール'};
+      if(strength==='strong'){
+        if(hasBlocker)return{bet:true,sizing:'1/3',explanation:'3BETポット + Monotone + ブロッカーあり: フラッシュスートのカードを1枚持っているため、相手のフラッシュ完成コンボが減少。小さくバリューベット'};
+        return{bet:false,sizing:null,explanation:'3BETポット + Monotone + ブロッカーなし: 強いハンドだがフラッシュスートのカードがない。相手のレンジにフラッシュ/フラッシュドローが多く、ベットしてもコールされるのは不利な状況が多い。チェックでポットコントロール'};
+      }
+      if(strength==='draw'){
+        if(hasBlocker)return{bet:true,sizing:'1/3',explanation:'3BETポット + Monotone + フラッシュドロー: ナッツフラッシュドローならブロッカー効果もあり小さくベット'};
+        return{bet:false,sizing:null,explanation:'3BETポット + Monotone: フラッシュドローなしのドローはチェック'};
+      }
+      return{bet:false,sizing:null,explanation:'3BETポット + Monotone: 弱いハンドはチェック。モノトーンボードでは広くチェックが基本'};
+    }
+    // Semi-wet / Wet in 3BET pot
+    if(strength==='monster'||strength==='strong')return{bet:true,sizing:'1/2',explanation:'3BETポット + Semi-wet/Wet: 強いハンドでバリューベット。ドローにコストを払わせる'};
+    if(strength==='draw')return{bet:true,sizing:'1/2',explanation:'3BETポット + Semi-wet/Wet: ドローでセミブラフ。fold equity + ヒット時のバリュー'};
+    return{bet:false,sizing:null,explanation:'3BETポット + Wet系ボード: 弱いハンドは選択的にチェック'};
   }
 
   // SRP
@@ -1762,19 +1780,25 @@ function determineCbetAnswer(hero, flop, textureId, strength, action){
         return{bet:true,sizing:'2/3',explanation:'Wetボード: 強いドローでセミブラフ。相手をフォールドさせつつヒット時に大きなポット'};
       return{bet:false,sizing:null,explanation:'Wetボード: 弱いハンドはチェック。ブラフキャッチされるリスクが高い'};
 
-    case 'monotone':
-      if(strength==='monster'||strength==='strong')
-        return{bet:true,sizing:'1/2',explanation:'Monotone: 強いハンドでベット。フラッシュ完成を警戒しつつバリュー'};
+    case 'monotone':{
+      const bs2={};flop.forEach(c=>{bs2[c.s]=(bs2[c.s]||0)+1;});
+      const ms2=Object.keys(bs2).find(s=>bs2[s]===3);
+      const hasBlocker2=hero.some(c=>c.s===ms2);
+      if(strength==='monster')
+        return{bet:true,sizing:'1/3',explanation:'Monotone: モンスターでも小さくベット。大きいベットはフラッシュ完成手にしかコールされない'};
+      if(strength==='strong'){
+        if(hasBlocker2)return{bet:true,sizing:'1/3',explanation:'Monotone + ブロッカーあり: フラッシュの組み合わせを減らしている。小さくバリューベット'};
+        return{bet:false,sizing:null,explanation:'Monotone + ブロッカーなし: 相手のフラッシュドロー/完成フラッシュが多すぎる。チェックしてポットコントロール'};
+      }
       if(strength==='medium')
         return{bet:false,sizing:null,explanation:'Monotone: ミディアムハンドはチェック。フラッシュが完成している相手に注意'};
       if(strength==='draw'){
-        const boardSuits={};flop.forEach(c=>{boardSuits[c.s]=(boardSuits[c.s]||0)+1;});
-        const monoSuit=Object.keys(boardSuits).find(s=>boardSuits[s]===3);
-        if(hero.some(c=>c.s===monoSuit))
-          return{bet:true,sizing:'1/3',explanation:'Monotone + フラッシュドロー: ブロッカー効果あり。小さくベット'};
+        if(hasBlocker2)
+          return{bet:true,sizing:'1/3',explanation:'Monotone + フラッシュドロー: ブロッカー効果あり。小さくセミブラフ'};
         return{bet:false,sizing:null,explanation:'Monotone: フラッシュドローなしのドローはチェック'};
       }
       return{bet:false,sizing:null,explanation:'Monotone: エアハンドはチェック。相手のフラッシュ系ハンドに注意'};
+    }
 
     case 'paired':
       if(strength==='monster'||strength==='strong')
