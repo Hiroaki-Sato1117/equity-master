@@ -235,6 +235,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 <div class="tc" id="tList"></div>
 <div class="tc" id="tStats"></div>
 <div class="tc" id="tGuide"></div>
+<div class="tc" id="tCbetGuide"></div>
 <div class="tc" id="tCbet"></div>
 </div>
 
@@ -258,7 +259,7 @@ const DRAW_TYPES = [
   {id:'pair_improve',  label:'Pair Improvement',desc:'Pair→Trips/2P, 2P→FH, Set→FH/Quads'},
 ];
 
-const TABS = [{id:'tasks',label:'TASKS'},{id:'cbet',label:'C-BET'},{id:'list',label:'LIST'},{id:'stats',label:'STATS'},{id:'guide',label:'GUIDE'}];
+const TABS = [{id:'tasks',label:'TASKS'},{id:'cbet',label:'C-BET'},{id:'list',label:'LIST'},{id:'stats',label:'STATS'},{id:'guide',label:'EQ GUIDE'},{id:'cbetguide',label:'CB GUIDE'}];
 const SK = {DATA:'pet1',TAB:'pet_tab',THEME:'pet_theme'};
 
 /* ============================================================
@@ -715,13 +716,14 @@ function switchTab(id){
   localStorage.setItem(SK.TAB,id);
   document.querySelectorAll('.ntab').forEach(b=>b.classList.toggle('active',b.dataset.tab===id));
   document.querySelectorAll('.tc').forEach(el=>el.classList.remove('active'));
-  const map={tasks:'tTasks',cbet:'tCbet',list:'tList',stats:'tStats',guide:'tGuide'};
+  const map={tasks:'tTasks',cbet:'tCbet',list:'tList',stats:'tStats',guide:'tGuide',cbetguide:'tCbetGuide'};
   document.getElementById(map[id]).classList.add('active');
   if(id==='tasks')rTasks();
   else if(id==='cbet')rCbet();
   else if(id==='list')rList();
   else if(id==='stats')rStats();
   else if(id==='guide')rGuide();
+  else if(id==='cbetguide')rCbetGuide();
 }
 
 /* ============================================================
@@ -2873,7 +2875,7 @@ function rGuide(){
   // Header
   h+=`<div style="text-align:center;margin-bottom:20px">`;
   h+=`<div style="font-size:20px;font-weight:800;color:var(--text)">Equity Guide</div>`;
-  h+=`<div style="font-size:12px;color:var(--text3);margin-top:4px">暗記すべきパターン一覧</div>`;
+  h+=`<div style="font-size:12px;color:var(--text3);margin-top:4px">ドロー・アウツ・ポットオッズの基礎知識</div>`;
   h+=`</div>`;
 
   // Rule of 2 and 4
@@ -3023,9 +3025,6 @@ function rGuide(){
     {term:'インプライドオッズ',def:'ヒット後に相手から追加で取れるチップを加味したオッズ。ポットオッズが足りなくてもコールできる場合がある。'},
     {term:'OESD',def:'Open-Ended Straight Draw。4枚連続で両端の2種類のカードでストレート完成（8アウツ）。'},
     {term:'ガットショット',def:'Gutshot Straight Draw。中抜けストレートドロー。1種類のカードでのみ完成（4アウツ）。'},
-    {term:'C-bet (コンティニュエーションベット)',def:'プリフロップでレイズした人がフロップでもベットすること。レンジアドバンテージを活かすプレイ。'},
-    {term:'ボードテクスチャ',def:'フロップの特性。Dry（ドロー少）/ Semi-wet / Wet（ドロー多）/ Monotone（3枚同スート）/ Paired（ペアあり）の5種に分類。'},
-    {term:'レンジアドバンテージ',def:'プリフロップレイザーがボードに対して持つハンドレンジの優位性。A/K高ボードではレイザーが有利。'},
   ];
   terms.forEach(t=>{
     h+=`<div style="margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--border)">`;
@@ -3035,68 +3034,279 @@ function rGuide(){
   });
   h+=`</div></div>`;
 
-  // C-BET Strategy Reference
-  h+=`<div class="card"><div class="card-h"><span class="card-title">C-bet戦略ガイド</span></div><div class="card-body">`;
-  h+=`<p style="font-size:13px;color:var(--text2);margin-bottom:12px">ボードテクスチャ別のC-bet戦略。</p>`;
-  h+=`<div style="overflow-x:auto">`;
-  h+=`<table style="width:100%;border-collapse:collapse;font-size:12px">`;
-  h+=`<thead><tr style="border-bottom:2px solid var(--border);text-align:left">`;
-  h+=`<th style="padding:8px 6px;color:var(--text3);font-weight:700">テクスチャ</th>`;
-  h+=`<th style="padding:8px 6px;color:var(--text3);font-weight:700;text-align:center">C-bet頻度</th>`;
-  h+=`<th style="padding:8px 6px;color:var(--text3);font-weight:700;text-align:center">推奨サイズ</th>`;
-  h+=`<th style="padding:8px 6px;color:var(--text3);font-weight:700">特徴</th>`;
-  h+=`</tr></thead><tbody>`;
-  const cbetGuide=[
-    {tex:'Dry',freq:'高 (70%+)',size:'1/3 pot',note:'レインボー、非コネクト。相手のドローが少ないため小さく頻繁にベット'},
-    {tex:'Semi-wet',freq:'中 (50-60%)',size:'1/2 pot',note:'ツートーン or やや接続。ハンド強度に応じて選択的にベット'},
-    {tex:'Wet',freq:'低 (30-40%)',size:'2/3-3/4 pot',note:'コネクト＋ツートーン。強いハンドとドローのみベット、大きいサイズ'},
-    {tex:'Monotone',freq:'低 (25-35%)',size:'1/3-1/2 pot',note:'3枚同スート。フラッシュブロッカー持ちでベット、それ以外はチェック'},
-    {tex:'Paired',freq:'高 (60-70%)',size:'1/3 pot',note:'ボードペア。レンジアドバンテージが大きいため広くC-bet'},
+  el.innerHTML=h;
+}
+
+/* ============================================================
+   C-BET GUIDE
+   ============================================================ */
+function rCbetGuide(){
+  const el=document.getElementById('tCbetGuide');
+  let h='';
+
+  // Header
+  h+=`<div style="text-align:center;margin-bottom:20px">`;
+  h+=`<div style="font-size:20px;font-weight:800;color:var(--text)">C-BET Guide</div>`;
+  h+=`<div style="font-size:12px;color:var(--text3);margin-top:4px">コンティニュエーションベットの基礎から実践まで</div>`;
+  h+=`</div>`;
+
+  // What is C-bet
+  h+=`<div class="card"><div class="card-h"><span class="card-title">C-betとは？</span></div><div class="card-body">`;
+  h+=`<p style="font-size:13px;color:var(--text2);margin-bottom:12px">C-bet（コンティニュエーションベット）とは、<strong>プリフロップでレイズした人がフロップでもベットする</strong>こと。プリフロップアグレッサーとしてのレンジアドバンテージを活かしたプレイ。</p>`;
+  h+=`<div style="display:flex;gap:12px;flex-wrap:wrap">`;
+  h+=`<div style="flex:1;min-width:180px;padding:12px;background:var(--bg2);border-radius:8px;border:1px solid var(--border)">`;
+  h+=`<div style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;margin-bottom:4px">なぜ有効？</div>`;
+  h+=`<div style="font-size:12px;color:var(--text2)">プリフロップレイザーのレンジはコーラーより強い。フロップでベットすることで相手の弱いハンドをフォールドさせつつ、強いハンドでバリューを取れる。</div>`;
+  h+=`</div>`;
+  h+=`<div style="flex:1;min-width:180px;padding:12px;background:var(--bg2);border-radius:8px;border:1px solid var(--border)">`;
+  h+=`<div style="font-size:11px;font-weight:700;color:var(--blue);text-transform:uppercase;margin-bottom:4px">基本原則</div>`;
+  h+=`<div style="font-size:12px;color:var(--text2)">ボードテクスチャとハンド強度に応じてベット頻度とサイズを調整する。闇雲に打つのではなく、状況に応じた判断が重要。</div>`;
+  h+=`</div>`;
+  h+=`</div>`;
+  h+=`</div></div>`;
+
+  // 6-max Positions
+  h+=`<div class="card"><div class="card-h"><span class="card-title">6-max ポジション</span></div><div class="card-body">`;
+  h+=`<p style="font-size:13px;color:var(--text2);margin-bottom:12px">6人テーブルのポジション。左から順にアクション。</p>`;
+  const positions=[
+    {pos:'UTG',full:'Under the Gun',desc:'最初にアクション。最もタイトなレンジでプレイ',range:'~13%',color:'var(--red)'},
+    {pos:'HJ',full:'Hijack',desc:'UTGの次。やや広いレンジ',range:'~18%',color:'var(--gold)'},
+    {pos:'CO',full:'Cutoff',desc:'BTNの前。かなり広くオープン可能',range:'~27%',color:'var(--blue)'},
+    {pos:'BTN',full:'Button',desc:'最も有利。フロップ以降常にIP（最後にアクション）',range:'~40%',color:'var(--green)'},
+    {pos:'SB',full:'Small Blind',desc:'ブラインド強制。フロップ以降はOOP',range:'~15%',color:'var(--text3)'},
+    {pos:'BB',full:'Big Blind',desc:'最後にプリフロップアクション。ワイドにディフェンス',range:'~ディフェンス',color:'var(--text3)'},
   ];
-  cbetGuide.forEach((g,i)=>{
+  h+=`<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px">`;
+  positions.forEach(p=>{
+    h+=`<div style="flex:1;min-width:140px;padding:10px;background:var(--bg2);border-radius:8px;border-left:3px solid ${p.color}">`;
+    h+=`<div style="font-size:15px;font-weight:800;color:${p.color}">${p.pos}</div>`;
+    h+=`<div style="font-size:10px;color:var(--text3)">${p.full}</div>`;
+    h+=`<div style="font-size:11px;color:var(--text2);margin-top:4px">${p.desc}</div>`;
+    h+=`<div style="font-size:10px;color:var(--text4);margin-top:2px">Open: ${p.range}</div>`;
+    h+=`</div>`;
+  });
+  h+=`</div>`;
+  h+=`<div style="padding:10px;background:var(--bg2);border-radius:8px;border:1px solid var(--border)">`;
+  h+=`<div style="font-size:11px;font-weight:700;color:var(--accent);margin-bottom:4px">IP vs OOP</div>`;
+  h+=`<div style="font-size:12px;color:var(--text2)"><strong>IP（In Position）</strong>= 相手の後にアクション。情報が多く有利。<br><strong>OOP（Out of Position）</strong>= 相手の前にアクション。不利なので慎重にプレイ。</div>`;
+  h+=`</div>`;
+  h+=`</div></div>`;
+
+  // Board Texture
+  h+=`<div class="card"><div class="card-h"><span class="card-title">ボードテクスチャ分類</span></div><div class="card-body">`;
+  h+=`<p style="font-size:13px;color:var(--text2);margin-bottom:12px">フロップの3枚を分析して5種類に分類。C-bet戦略の最も重要な判断基準。</p>`;
+  const textures=[
+    {id:'Dry',example:'K♠ 7♥ 2♦',traits:'レインボー（3スート）、カード間が離れている',draws:'ドローが少ない',strat:'小さく高頻度にベット（1/3 pot）。相手はほぼ何もヒットしていない。',color:'var(--gold)'},
+    {id:'Semi-wet',example:'8♥ 6♥ 3♦',traits:'ツートーン or やや接続',draws:'フラッシュドローやガットショットが存在',strat:'ハンド強度に応じて選択的にベット（1/2 pot）。',color:'var(--blue)'},
+    {id:'Wet',example:'J♠ T♥ 9♠',traits:'コネクト＋ツートーン',draws:'OESD、フラッシュドロー、コンボドローが豊富',strat:'強いハンドとドローのみ大きくベット（2/3-3/4 pot）。弱いハンドはチェック。',color:'var(--red)'},
+    {id:'Monotone',example:'Q♠ 5♠ 3♠',traits:'3枚すべて同じスート',draws:'フラッシュ完成手やフラッシュドローが非常に多い',strat:'ブロッカー持ちのみ小さくベット（1/3 pot）。ブロッカーなしはチェック。',color:'var(--purple,var(--accent))'},
+    {id:'Paired',example:'K♠ K♥ 7♦',traits:'ボードにペアがある',draws:'ストレート/フラッシュドローは少ない',strat:'レンジアドバンテージが大きいため広くC-bet（1/3 pot）。',color:'var(--green)'},
+  ];
+  textures.forEach(t=>{
+    h+=`<div style="margin-bottom:12px;padding:12px;background:var(--bg2);border-radius:8px;border-left:3px solid ${t.color}">`;
+    h+=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">`;
+    h+=`<span style="font-size:14px;font-weight:800;color:${t.color}">${t.id}</span>`;
+    h+=`<span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--text3)">${t.example}</span>`;
+    h+=`</div>`;
+    h+=`<div style="font-size:11px;color:var(--text3);margin-bottom:4px"><strong>特徴:</strong> ${t.traits}</div>`;
+    h+=`<div style="font-size:11px;color:var(--text3);margin-bottom:4px"><strong>ドロー:</strong> ${t.draws}</div>`;
+    h+=`<div style="font-size:12px;color:var(--text);font-weight:600">${t.strat}</div>`;
+    h+=`</div>`;
+  });
+  h+=`</div></div>`;
+
+  // Hand Strength Classification
+  h+=`<div class="card"><div class="card-h"><span class="card-title">ハンド強度の分類</span></div><div class="card-body">`;
+  h+=`<p style="font-size:13px;color:var(--text2);margin-bottom:12px">フロップ時点でのハンドの強さを6段階に分類。</p>`;
+  const strengths=[
+    {label:'Monster',color:'var(--red)',desc:'セット、ストレート、フラッシュ以上',action:'ほぼ常にベット。スロープレイは稀。'},
+    {label:'Strong',color:'var(--accent)',desc:'オーバーペア、トップペア(強キッカー)',action:'大体ベット。バリューを取りに行く。'},
+    {label:'Medium',color:'var(--blue)',desc:'セカンドペア、弱キッカーのトップペア、アンダーペア',action:'ボードによる。Dryならベット、Wetならチェック。'},
+    {label:'Draw',color:'var(--gold)',desc:'フラッシュドロー、OESD、コンボドロー',action:'セミブラフとしてベット。ブロッカーがあればより積極的に。'},
+    {label:'Weak',color:'var(--text3)',desc:'ボトムペア、弱いペア',action:'基本チェック。Dryボードでバックドアドローがあればベット可。'},
+    {label:'Air',color:'var(--text4)',desc:'ノーペア、ノードロー',action:'基本チェック。Dryボードでバックドアドローがあれば小さくベット可。'},
+  ];
+  h+=`<div style="display:flex;flex-direction:column;gap:6px">`;
+  strengths.forEach(s=>{
+    h+=`<div style="display:flex;gap:12px;align-items:flex-start;padding:8px 12px;background:var(--bg2);border-radius:8px;border-left:3px solid ${s.color}">`;
+    h+=`<div style="min-width:70px"><span style="font-size:12px;font-weight:800;color:${s.color}">${s.label}</span></div>`;
+    h+=`<div style="flex:1"><div style="font-size:11px;color:var(--text3)">${s.desc}</div>`;
+    h+=`<div style="font-size:11px;color:var(--text2);margin-top:2px">${s.action}</div></div>`;
+    h+=`</div>`;
+  });
+  h+=`</div>`;
+  h+=`</div></div>`;
+
+  // C-bet Strategy Matrix
+  h+=`<div class="card"><div class="card-h"><span class="card-title">C-bet判断マトリクス（SRP）</span></div><div class="card-body">`;
+  h+=`<p style="font-size:13px;color:var(--text2);margin-bottom:12px">シングルレイズポット（SRP）でのテクスチャ × ハンド強度の判断表。</p>`;
+  h+=`<div style="overflow-x:auto">`;
+  h+=`<table style="width:100%;border-collapse:collapse;font-size:11px">`;
+  h+=`<thead><tr style="border-bottom:2px solid var(--border);text-align:center">`;
+  h+=`<th style="padding:6px;color:var(--text3);font-weight:700;text-align:left">テクスチャ</th>`;
+  ['Monster','Strong','Medium','Draw','Weak/Air'].forEach(s=>{
+    h+=`<th style="padding:6px;color:var(--text3);font-weight:700">${s}</th>`;
+  });
+  h+=`</tr></thead><tbody>`;
+  const matrix=[
+    {tex:'Dry',cells:['Bet 1/3','Bet 1/3','Bet 1/3','Bet 1/3','BD有:Bet 1/3<br>BD無:Check']},
+    {tex:'Semi-wet',cells:['Bet 1/2','Bet 1/2','IP:Bet 1/2<br>OOP:Check','Bet 1/2','Check']},
+    {tex:'Wet',cells:['Bet 3/4','Bet 3/4','Check','Bet 2/3','Check']},
+    {tex:'Monotone',cells:['Bet 1/3','Blk有:Bet 1/3<br>Blk無:Check','Check','Blk有:Bet 1/3<br>Blk無:Check','Check']},
+    {tex:'Paired',cells:['Bet 1/3','Bet 1/3','Bet 1/3','Bet 1/3','RA有:Bet 1/3<br>RA無:Check']},
+  ];
+  matrix.forEach((row,i)=>{
     const bg=i%2===0?'var(--bg2)':'transparent';
     h+=`<tr style="border-bottom:1px solid var(--border);background:${bg}">`;
-    h+=`<td style="padding:8px 6px;font-weight:600;color:var(--text)">${g.tex}</td>`;
-    h+=`<td style="padding:8px 6px;text-align:center;font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--accent)">${g.freq}</td>`;
-    h+=`<td style="padding:8px 6px;text-align:center;font-family:'JetBrains Mono',monospace;color:var(--text)">${g.size}</td>`;
-    h+=`<td style="padding:8px 6px;color:var(--text3);font-size:11px">${g.note}</td>`;
+    h+=`<td style="padding:6px;font-weight:700;color:var(--text);white-space:nowrap">${row.tex}</td>`;
+    row.cells.forEach(c=>{
+      const isBet=c.includes('Bet');
+      const isCheck=c==='Check';
+      const col=isCheck?'var(--text4)':isBet?'var(--text)':'var(--text2)';
+      h+=`<td style="padding:6px;text-align:center;color:${col};line-height:1.4">${c}</td>`;
+    });
     h+=`</tr>`;
   });
   h+=`</tbody></table></div>`;
+  h+=`<div style="margin-top:8px;font-size:10px;color:var(--text4)">BD = バックドアドロー、Blk = フラッシュブロッカー、RA = レンジアドバンテージ</div>`;
+  h+=`</div></div>`;
+
+  // Pot Type Differences
+  h+=`<div class="card"><div class="card-h"><span class="card-title">ポットタイプ別の戦略</span></div><div class="card-body">`;
+  const potTypes=[
+    {type:'SRP',full:'シングルレイズポット',desc:'最も一般的な状況。テクスチャに応じてサイズと頻度を調整。',
+     key:'ボードテクスチャが最重要。Dryなら広く小さく、Wetなら選択的に大きく。',color:'var(--blue)'},
+    {type:'3BET Pot',full:'3ベットポット',desc:'プリフロップで3betが入ったポット。SPR（スタック対ポット比）が低い。',
+     key:'SPRが低いためレンジアドバンテージが極めて大きい。Dryなら1/3 potでほぼ全レンジベット。Wetでも1/2 potで選択的にベット。Monotoneは特に慎重に。',color:'var(--red)'},
+    {type:'Multiway',full:'マルチウェイポット',desc:'3人以上のプレイヤーがいるポット。',
+     key:'ブラフ成功率が大幅に下がる。強いハンド（Monster/Strong）とドローのみ2/3 potでベット。それ以外はチェック。',color:'var(--gold)'},
+  ];
+  potTypes.forEach(p=>{
+    h+=`<div style="margin-bottom:10px;padding:12px;background:var(--bg2);border-radius:8px;border-left:3px solid ${p.color}">`;
+    h+=`<div style="font-size:14px;font-weight:800;color:${p.color};margin-bottom:4px">${p.type} <span style="font-size:11px;font-weight:400;color:var(--text3)">${p.full}</span></div>`;
+    h+=`<div style="font-size:11px;color:var(--text3);margin-bottom:6px">${p.desc}</div>`;
+    h+=`<div style="font-size:12px;color:var(--text)">${p.key}</div>`;
+    h+=`</div>`;
+  });
   h+=`</div></div>`;
 
   // Sizing Logic
-  h+=`<div class="card"><div class="card-h"><span class="card-title">サイジングロジック</span></div><div class="card-body">`;
-  h+=`<div style="display:flex;flex-direction:column;gap:8px">`;
-  const szSteps=[
-    {n:'1',color:'var(--green)',title:'Dry → 小さく高頻度（1/3 pot）',desc:'相手のドローが少ない＝プロテクション不要。小さいベットでfold equityを最大化'},
-    {n:'2',color:'var(--blue)',title:'Wet → 大きく低頻度（2/3-3/4 pot）',desc:'ドローが多い＝プロテクション必要。大きいベットでドローに不正確なオッズを与える'},
-    {n:'3',color:'var(--gold)',title:'3BETポット → 小さく広く（1/3 pot）',desc:'SPRが低い＝レンジアドバンテージ大。ほぼ全レンジで小さくベット'},
-    {n:'4',color:'var(--red)',title:'マルチウェイ → 強いハンドのみ（2/3 pot）',desc:'複数の相手＝ブラフ成功率が低い。バリューとセミブラフのみベット'},
+  h+=`<div class="card"><div class="card-h"><span class="card-title">サイジングの考え方</span></div><div class="card-body">`;
+  h+=`<p style="font-size:13px;color:var(--text2);margin-bottom:12px">なぜそのサイズを使うのか？核心的な原理を理解する。</p>`;
+  const szLogic=[
+    {n:'1',color:'var(--green)',title:'Dry → 小さく高頻度（1/3 pot）',
+     desc:'相手のドローが少ない＝プロテクション不要。小さいベットでも相手は弱いハンドをフォールドする。小さいサイズ＝リスクが小さいので広いレンジでベットできる。'},
+    {n:'2',color:'var(--red)',title:'Wet → 大きく低頻度（2/3-3/4 pot）',
+     desc:'ドローが多い＝プロテクションが必要。大きいベットで相手のドローに不正確なポットオッズを与える。例: 2/3 potベット → 相手に28.6%のオッズ → フラッシュドロー(36%)はコール可だがガットショット(17%)はフォールド。'},
+    {n:'3',color:'var(--gold)',title:'Monotone → 小さくor チェック（1/3 pot）',
+     desc:'一見ウェットだが逆の戦略。大きくベットしてもフラッシュ持ちにしかコールされない。フラッシュブロッカー（そのスートのカードを持っている）があれば相手のフラッシュの組み合わせが減るので小さくベット。'},
+    {n:'4',color:'var(--blue)',title:'3BET pot → 小さく広く（1/3 pot）',
+     desc:'ポットが既に大きい＋SPRが低い＝レンジアドバンテージが極大。1/3 potの小さいベットでも相手に十分なプレッシャーをかけられる。'},
+    {n:'5',color:'var(--text3)',title:'Multiway → 強いハンドのみ（2/3 pot）',
+     desc:'複数人相手＝少なくとも1人は何か持っている確率が高い。ブラフは効きにくい。バリューハンドとセミブラフでのみベット。'},
   ];
-  szSteps.forEach(s=>{
-    h+=`<div style="display:flex;gap:12px;align-items:flex-start;padding:10px 12px;background:var(--bg2);border-radius:8px;border-left:3px solid ${s.color}">`;
+  szLogic.forEach(s=>{
+    h+=`<div style="display:flex;gap:12px;align-items:flex-start;padding:10px 12px;background:var(--bg2);border-radius:8px;border-left:3px solid ${s.color};margin-bottom:8px">`;
     h+=`<div style="width:24px;height:24px;border-radius:50%;background:${s.color};color:white;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0">${s.n}</div>`;
     h+=`<div><div style="font-size:13px;font-weight:700;color:var(--text)">${s.title}</div>`;
     h+=`<div style="font-size:11px;color:var(--text3);margin-top:2px">${s.desc}</div></div>`;
     h+=`</div>`;
   });
-  h+=`</div></div></div>`;
+  h+=`</div></div>`;
 
   // Range Advantage
   h+=`<div class="card"><div class="card-h"><span class="card-title">レンジアドバンテージ</span></div><div class="card-body">`;
-  h+=`<div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:12px">`;
-  h+=`<div style="flex:1;min-width:200px;padding:12px;background:var(--greenBg);border-radius:8px;border:1px solid var(--green)">`;
-  h+=`<div style="font-size:11px;font-weight:700;color:var(--green);text-transform:uppercase;margin-bottom:6px">レイザー有利なボード</div>`;
-  h+=`<div style="font-size:13px;color:var(--text)">A-x-x、K-x-x、Q-x-x</div>`;
-  h+=`<div style="font-size:11px;color:var(--text3);margin-top:4px">ハイカードボード。プリフロップレイザーのレンジにA/K/Qが多い</div>`;
+  h+=`<p style="font-size:13px;color:var(--text2);margin-bottom:12px">プリフロップレイザーがボードに対して持つ「レンジ全体の強さの優位性」。C-bet頻度に直結する重要概念。</p>`;
+  h+=`<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px">`;
+  h+=`<div style="flex:1;min-width:200px;padding:12px;background:var(--greenBg,rgba(0,200,0,0.1));border-radius:8px;border:1px solid var(--green)">`;
+  h+=`<div style="font-size:11px;font-weight:700;color:var(--green);text-transform:uppercase;margin-bottom:6px">レイザー有利（高頻度C-bet可）</div>`;
+  h+=`<div style="font-size:14px;font-weight:800;color:var(--text);margin-bottom:4px">A-x-x、K-x-x、Q-x-x</div>`;
+  h+=`<div style="font-size:11px;color:var(--text3)">レイザーのレンジにA/K/Qが多い。コーラー（特にBB）のレンジにはこれらが少ない。</div>`;
   h+=`</div>`;
-  h+=`<div style="flex:1;min-width:200px;padding:12px;background:var(--redBg);border-radius:8px;border:1px solid var(--red)">`;
-  h+=`<div style="font-size:11px;font-weight:700;color:var(--red);text-transform:uppercase;margin-bottom:6px">コーラー有利なボード</div>`;
-  h+=`<div style="font-size:13px;color:var(--text)">8-7-6、5-4-3 など</div>`;
-  h+=`<div style="font-size:11px;color:var(--text3);margin-top:4px">ロウ＆コネクトボード。BBのワイドレンジがヒットしやすい</div>`;
+  h+=`<div style="flex:1;min-width:200px;padding:12px;background:var(--redBg,rgba(200,0,0,0.1));border-radius:8px;border:1px solid var(--red)">`;
+  h+=`<div style="font-size:11px;font-weight:700;color:var(--red);text-transform:uppercase;margin-bottom:6px">コーラー有利（C-bet慎重に）</div>`;
+  h+=`<div style="font-size:14px;font-weight:800;color:var(--text);margin-bottom:4px">8-7-6、5-4-3 など</div>`;
+  h+=`<div style="font-size:11px;color:var(--text3)">ロウ＆コネクトボード。BBのワイドレンジ（87s, 65s等）がヒットしやすい。レイザーのAK等が空振り。</div>`;
   h+=`</div>`;
   h+=`</div>`;
+  h+=`</div></div>`;
+
+  // Blocker Concept
+  h+=`<div class="card"><div class="card-h"><span class="card-title">ブロッカーの概念</span></div><div class="card-body">`;
+  h+=`<p style="font-size:13px;color:var(--text2);margin-bottom:12px">自分が持っているカードは相手が持てない。この情報がC-bet判断に影響する。</p>`;
+  h+=`<div style="display:flex;flex-direction:column;gap:8px">`;
+  const blockerExamples=[
+    {title:'フラッシュブロッカー',desc:'モノトーンボード（例: Q♠5♠3♠）で自分がA♠を持っている',
+     effect:'相手のナッツフラッシュドロー（A♠x♠）の組み合わせを完全にブロック。相手がフラッシュを持っている可能性が大幅に低下するため、ベットが通りやすい。',color:'var(--blue)'},
+    {title:'ペアブロッカー',desc:'自分がKを持っていてボードにKがある',
+     effect:'相手がKを持っている（トップペア）の組み合わせが減る。自分のベットに対してコールされにくい。',color:'var(--green)'},
+    {title:'ストレートブロッカー',desc:'コネクトボード（例: T♥9♠8♦）で自分がJを持っている',
+     effect:'相手のQJ（ストレート）やJ7（ストレート）の組み合わせをブロック。相手のナッツの可能性を減らす。',color:'var(--gold)'},
+  ];
+  blockerExamples.forEach(b=>{
+    h+=`<div style="padding:10px 12px;background:var(--bg2);border-radius:8px;border-left:3px solid ${b.color}">`;
+    h+=`<div style="font-size:12px;font-weight:700;color:${b.color}">${b.title}</div>`;
+    h+=`<div style="font-size:11px;color:var(--text3);margin-top:2px">${b.desc}</div>`;
+    h+=`<div style="font-size:11px;color:var(--text2);margin-top:4px">${b.effect}</div>`;
+    h+=`</div>`;
+  });
+  h+=`</div>`;
+  h+=`</div></div>`;
+
+  // Pot Odds for C-bet Sizing
+  h+=`<div class="card"><div class="card-h"><span class="card-title">ベットサイズとポットオッズの関係</span></div><div class="card-body">`;
+  h+=`<p style="font-size:13px;color:var(--text2);margin-bottom:12px">あなたがベットしたとき、相手にどれくらいのオッズを与えているか？</p>`;
+  h+=`<div style="overflow-x:auto">`;
+  h+=`<table style="width:100%;border-collapse:collapse;font-size:12px">`;
+  h+=`<thead><tr style="border-bottom:2px solid var(--border);text-align:center">`;
+  h+=`<th style="padding:8px 6px;color:var(--text3);font-weight:700;text-align:left">ベットサイズ</th>`;
+  h+=`<th style="padding:8px 6px;color:var(--text3);font-weight:700">相手のオッズ</th>`;
+  h+=`<th style="padding:8px 6px;color:var(--text3);font-weight:700">必要勝率</th>`;
+  h+=`<th style="padding:8px 6px;color:var(--text3);font-weight:700;text-align:left">フォールドさせられるドロー</th>`;
+  h+=`</tr></thead><tbody>`;
+  const szOdds=[
+    {sz:'1/3 pot',odds:'4:1',pct:'20%',folds:'ガットショット(17%)以下'},
+    {sz:'1/2 pot',odds:'3:1',pct:'25%',folds:'オーバーカード2枚(24%)以下'},
+    {sz:'2/3 pot',odds:'2.5:1',pct:'28.6%',folds:'ガットショット+BD(~22%)以下'},
+    {sz:'3/4 pot',odds:'2.3:1',pct:'30%',folds:'オーバーカード2枚以下'},
+    {sz:'Pot',odds:'2:1',pct:'33.3%',folds:'OESD(32%)がギリギリ'},
+  ];
+  szOdds.forEach((s,i)=>{
+    const bg=i%2===0?'var(--bg2)':'transparent';
+    h+=`<tr style="border-bottom:1px solid var(--border);background:${bg}">`;
+    h+=`<td style="padding:8px 6px;font-weight:700;color:var(--text)">${s.sz}</td>`;
+    h+=`<td style="padding:8px 6px;text-align:center;font-family:'JetBrains Mono',monospace;color:var(--text)">${s.odds}</td>`;
+    h+=`<td style="padding:8px 6px;text-align:center;font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--red)">${s.pct}</td>`;
+    h+=`<td style="padding:8px 6px;color:var(--text3);font-size:11px">${s.folds}</td>`;
+    h+=`</tr>`;
+  });
+  h+=`</tbody></table></div>`;
+  h+=`<div style="margin-top:8px;padding:8px;background:var(--bg2);border-radius:6px;font-size:11px;color:var(--text3)">`;
+  h+=`<strong>考え方:</strong> 相手のドローのエクイティ > 与えたオッズ → 相手のコールは正しい（=あなたのベットサイズが小さすぎる）。逆に、ドローのエクイティ < 与えたオッズ → 相手のコールは間違い（=あなたのベットサイズは正しい）。`;
+  h+=`</div>`;
+  h+=`</div></div>`;
+
+  // Glossary
+  h+=`<div class="card"><div class="card-h"><span class="card-title">用語解説</span></div><div class="card-body">`;
+  const cbTerms=[
+    {term:'C-bet',def:'Continuation Bet。プリフロップレイザーがフロップで続けてベットすること。'},
+    {term:'SRP',def:'Single Raised Pot。プリフロップでオープンレイズ→コールの一般的なポット。'},
+    {term:'3BET Pot',def:'プリフロップで3bet(リレイズ)が入ったポット。SPRが低く、レンジが狭い。'},
+    {term:'SPR',def:'Stack to Pot Ratio。スタック÷ポット。低いほどオールインに近づきやすい。'},
+    {term:'ボードテクスチャ',def:'フロップの特性（Dry/Semi-wet/Wet/Monotone/Paired）。C-bet戦略の最重要判断基準。'},
+    {term:'レンジアドバンテージ',def:'ハンドレンジ全体での優位性。ハイカードボードではレイザーのレンジが有利。'},
+    {term:'プロテクションベット',def:'相手のドローが完成する前にベットして降ろす、またはエクイティを取るプレイ。'},
+    {term:'フラッシュブロッカー',def:'モノトーンボードで自分がそのスートのカードを持っていること。相手のフラッシュ可能性を減らす。'},
+    {term:'セミブラフ',def:'現時点では最強ではないが、ドローが完成すれば勝てるハンドでベットすること。Fold equity + ヒット時のバリュー。'},
+    {term:'バックドアドロー',def:'ターンとリバーの2枚で完成するドロー。直接のドローよりは弱いが、ベットする根拠になる。'},
+    {term:'Fold Equity',def:'ベットやレイズによって相手をフォールドさせることで得られる利益。'},
+  ];
+  cbTerms.forEach(t=>{
+    h+=`<div style="margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--border)">`;
+    h+=`<div style="font-size:13px;font-weight:700;color:var(--accent)">${t.term}</div>`;
+    h+=`<div style="font-size:12px;color:var(--text2);margin-top:2px">${t.def}</div>`;
+    h+=`</div>`;
+  });
   h+=`</div></div>`;
 
   el.innerHTML=h;
